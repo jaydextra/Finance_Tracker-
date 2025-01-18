@@ -124,6 +124,7 @@
             padding: 12px;
             text-align: center;
             border: 1px solid #dee2e6;
+            width: auto;
         }
 
         /* Media Queries for Mobile */
@@ -156,26 +157,96 @@
         @media (max-width: 576px) {
             .expenses-table th, .expenses-table td {
                 white-space: nowrap;
+                padding: 8px;
+                text-align: center;
+            }
+
+            .expenses-table {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .expenses-table thead {
+                display: none;
+            }
+
+            .expenses-table tbody {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .expenses-table tr {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                border-bottom: 1px solid #dee2e6;
             }
 
             .expenses-table td {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 8px;
-            }
-
-            .expenses-table td:last-child {
                 flex: 1;
-                justify-content: flex-end;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 10px;
             }
 
+            .card-title {
+                font-size: 1.25rem;
+            }
+
+            .gradient-text {
+                font-size: 2rem;
+            }
+
+            .summary-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .summary-text, .chart-container {
+                max-width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+
+        .expenses-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .expenses-table th, .expenses-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 576px) {
             .expenses-table th, .expenses-table td {
-                text-align: left;
+                white-space: nowrap;
+                padding: 8px;
+                text-align: center;
             }
 
-            .expenses-table .btn, .expenses-table input[type="checkbox"] {
-                margin: 0 5px;
+            .expenses-table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .expenses-table thead {
+                display: table-header-group;
+            }
+
+            .expenses-table tbody {
+                display: table-row-group;
+            }
+
+            .expenses-table tr {
+                display: table-row;
+            }
+
+            .expenses-table td {
+                display: table-cell;
             }
         }
     </style>
@@ -183,7 +254,16 @@
 <body>
     <div class="container">
         <!-- Month Navigation -->
-        <div id="monthNavbar" class="d-flex justify-content-center flex-wrap mb-4"></div>
+        <div class="d-flex justify-content-center flex-wrap mb-4">
+            <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle" type="button" id="monthDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Select Month
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="monthDropdown" id="monthDropdownMenu">
+                    <!-- Month options will be dynamically added here -->
+                </ul>
+            </div>
+        </div>
 
         <h1 class="text-center gradient-text">Finance Tracker</h1>
 
@@ -304,7 +384,9 @@
                             <th>Skip</th>
                         </tr>
                     </thead>
-                    <tbody id="expensesTable"></tbody>
+                    <tbody id="expensesTable">
+                        <!-- Expense rows will be dynamically added here -->
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -355,27 +437,27 @@
             localStorage.setItem('financeData', JSON.stringify(dataByMonth));
         }
 
-        // Render month navbar
-        function renderMonthNavbar() {
-            const navbar = document.getElementById("monthNavbar");
-            navbar.innerHTML = "";
+        // Populate month dropdown
+        function populateMonthDropdown() {
+            const dropdownMenu = document.getElementById("monthDropdownMenu");
+            dropdownMenu.innerHTML = ""; // Clear existing options
 
             months.forEach((month, index) => {
-                const button = document.createElement("button");
-                button.textContent = month;
-                button.classList.add("btn", "btn-outline-primary", "m-1");
-                if (index === currentMonthIndex) {
-                    button.classList.add("active-btn");
-                }
-                button.onclick = () => switchMonth(index);
-                navbar.appendChild(button);
+                const listItem = document.createElement("li");
+                const link = document.createElement("a");
+                link.className = "dropdown-item";
+                link.href = "#";
+                link.textContent = month;
+                link.onclick = () => switchMonth(index);
+                listItem.appendChild(link);
+                dropdownMenu.appendChild(listItem);
             });
         }
 
         // Switch month
         function switchMonth(index) {
             currentMonthIndex = index;
-            renderMonthNavbar();
+            document.getElementById("monthDropdown").textContent = `Month: ${months[index]}`;
             renderExpensesTable();
             updateSummary();
         }
@@ -639,7 +721,7 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            renderMonthNavbar();
+            populateMonthDropdown();
             renderExpensesTable();
             updateIncomeDisplay();
             updateSummary();
