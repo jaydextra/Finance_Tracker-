@@ -18,6 +18,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Data Labels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -35,7 +37,7 @@
             color: white !important;
         }
         .highlight-row {
-            background-color: #d4edda !important;
+            background-color: #c3e6cb !important;
         }
         .card {
             border: none;
@@ -95,14 +97,33 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
+            padding: 0;
+        }
+        .expenses-card .card-body {
+            padding: 0;
+        }
+        .expenses-card .card-header {
+            background-color: #007BFF;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            padding: 10px;
+        }
+        .expenses-card .card-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0;
         }
         .expenses-table th {
             background-color: #007BFF;
             color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
         .expenses-table td, .expenses-table th {
             padding: 12px;
             text-align: center;
+            border: 1px solid #dee2e6;
         }
 
         /* Media Queries for Mobile */
@@ -120,6 +141,41 @@
             }
             .gradient-text {
                 font-size: 2rem;
+            }
+        }
+
+        /* Responsive Table */
+        .expenses-table {
+            width: 100%;
+            overflow-x: auto;
+            display: block;
+            border-collapse: collapse;
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 576px) {
+            .expenses-table th, .expenses-table td {
+                white-space: nowrap;
+            }
+
+            .expenses-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px;
+            }
+
+            .expenses-table td:last-child {
+                flex: 1;
+                justify-content: flex-end;
+            }
+
+            .expenses-table th, .expenses-table td {
+                text-align: left;
+            }
+
+            .expenses-table .btn, .expenses-table input[type="checkbox"] {
+                margin: 0 5px;
             }
         }
     </style>
@@ -190,7 +246,7 @@
                                         <select id="newFrequency" class="form-select">
                                             <option value="Weekly">Weekly</option>
                                             <option value="Bi-Weekly">Bi-Weekly</option>
-                                            <option value="Monthly">Monthly</option>
+                                            <option value="Monthly" selected>Monthly</option>
                                         </select>
                                     </div>
                                 </div>
@@ -231,9 +287,11 @@
 
         <!-- Expense Table -->
         <div class="expenses-card card">
-            <div class="card-body">
+            <div class="card-header">
                 <h3 class="card-title">Expenses</h3>
-                <table class="table table-bordered expenses-table">
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-striped table-hover expenses-table">
                     <thead>
                         <tr>
                             <th>Item</th>
@@ -341,12 +399,54 @@
                 return;
             }
 
-            const newExpense = { item, amount, dueDate, category, frequency, paid: false, skipped: false };
-            dataByMonth[currentMonthIndex].expenses.push(newExpense);
+            // Determine the number of entries to add based on frequency
+            let occurrences = 1;
+            let interval = 0;
+            if (frequency === 'Weekly') {
+                occurrences = 4; // Add 4 entries for weekly expenses
+                interval = 7; // Weekly interval
+            } else if (frequency === 'Bi-Weekly') {
+                occurrences = 2; // Add 2 entries for bi-weekly expenses
+                interval = 14; // Bi-weekly interval
+            } else if (frequency === 'Monthly') {
+                occurrences = 1; // Add 1 entry for monthly expenses
+            }
+
+            for (let i = 0; i < occurrences; i++) {
+                const newDueDate = new Date(dueDate);
+                newDueDate.setDate(newDueDate.getDate() + i * interval);
+                const formattedDueDate = newDueDate.toISOString().split('T')[0];
+
+                const newExpense = { 
+                    item, 
+                    amount, 
+                    dueDate: formattedDueDate, 
+                    category, 
+                    frequency, 
+                    paid: false, 
+                    skipped: false 
+                };
+                dataByMonth[currentMonthIndex].expenses.push(newExpense);
+            }
 
             // Carry expenses to future months
             for (let i = currentMonthIndex + 1; i < 12; i++) {
-                dataByMonth[i].expenses.push({ ...newExpense });
+                for (let j = 0; j < occurrences; j++) {
+                    const newDueDate = new Date(dueDate);
+                    newDueDate.setDate(newDueDate.getDate() + j * interval);
+                    const formattedDueDate = newDueDate.toISOString().split('T')[0];
+
+                    const futureExpense = { 
+                        item, 
+                        amount, 
+                        dueDate: formattedDueDate, 
+                        category, 
+                        frequency, 
+                        paid: false, 
+                        skipped: false 
+                    };
+                    dataByMonth[i].expenses.push(futureExpense);
+                }
             }
 
             renderExpensesTable();
@@ -396,46 +496,10 @@
         // Update summary
         function updateSummary() {
             const currentData = dataByMonth[currentMonthIndex];
-            const year = new Date().getFullYear();
-            const month = currentMonthIndex; // 0-indexed month
-            const daysInMonth = new Date(year, month + 1, 0).getDate(); // Get the number of days in the current month
 
             const totalExpenses = currentData.expenses.reduce((sum, expense) => {
                 if (expense.skipped) return sum;
-
-                let expenseAmount = expense.amount;
-                const dueDate = new Date(expense.dueDate);
-                const startDay = dueDate.getDate();
-
-                switch (expense.frequency) {
-                    case 'Weekly':
-                        if (currentMonthIndex === dueDate.getMonth()) {
-                            // First month: calculate from the start day
-                            const weeksInMonth = Math.floor((daysInMonth - startDay) / 7) + 1;
-                            expenseAmount *= weeksInMonth;
-                        } else {
-                            // Subsequent months: calculate full weeks
-                            const fullWeeksInMonth = Math.floor(daysInMonth / 7);
-                            expenseAmount *= fullWeeksInMonth;
-                        }
-                        break;
-                    case 'Bi-Weekly':
-                        if (currentMonthIndex === dueDate.getMonth()) {
-                            // First month: calculate from the start day
-                            const biWeeksInMonth = Math.floor((daysInMonth - startDay) / 14) + 1;
-                            expenseAmount *= biWeeksInMonth;
-                        } else {
-                            // Subsequent months: calculate full bi-weekly periods
-                            const fullBiWeeksInMonth = Math.floor(daysInMonth / 14);
-                            expenseAmount *= fullBiWeeksInMonth;
-                        }
-                        break;
-                    case 'Monthly':
-                        // No change needed for monthly
-                        break;
-                }
-
-                return sum + expenseAmount;
+                return sum + expense.amount;
             }, 0);
 
             const totalPaid = currentData.expenses.reduce((sum, expense) => sum + (expense.paid ? expense.amount : 0), 0);
@@ -498,9 +562,28 @@
                                     return `${label}: $${value.toFixed(2)} (${percentage}%)`;
                                 }
                             }
+                        },
+                        datalabels: {
+                            formatter: (value, context) => {
+                                return `$${value.toFixed(2)}`;
+                            },
+                            color: 'white',
+                            font: {
+                                weight: 'bold'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Expense Distribution by Category',
+                                color: 'white',
+                                font: {
+                                    size: 18,
+                                    weight: 'bold'
+                                }
+                            }
                         }
                     }
-                }
+                },
+                plugins: [ChartDataLabels] // Ensure you include the ChartDataLabels plugin
             });
         }
 
