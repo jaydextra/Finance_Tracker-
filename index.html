@@ -269,16 +269,16 @@
                             </button>
                         </h3>
                     </div>
+                    <div class="card-body">
+                        <!-- Display total income outside the collapsible section -->
+                        <div class="current-income-display mb-3">
+                            Total Monthly Income: <span id="currentIncome">$0.00</span>
+                        </div>
+                    </div>
                     <div id="updateIncomeCollapse" class="collapse">
                         <div class="card-body">
-                            <div class="current-income-display">
-                                Current Income: <span id="currentIncome">$0.00</span>
-                            </div>
-                            <div class="input-group mb-3">
-                                <span class="input-group-text"><i class="fas fa-wallet"></i></span>
-                                <input type="number" id="incomeInput" class="form-control" placeholder="Enter monthly income">
-                            </div>
-                            <button id="updateIncomeButton" class="btn btn-primary w-100">Save Income</button>
+                            <button class="btn btn-primary w-100 mb-3" data-bs-toggle="modal" data-bs-target="#addIncomeSourceModal">Add Income Source</button>
+                            <ul id="incomeSourceList" class="list-group mb-3"></ul>
                         </div>
                     </div>
                 </div>
@@ -308,6 +308,31 @@
                 </table>
             </div>
         </div>
+
+        <!-- Add Income Source Modal -->
+        <div class="modal fade" id="addIncomeSourceModal" tabindex="-1" aria-labelledby="addIncomeSourceModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addIncomeSourceModalLabel">Add Income Source</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="incomeSourceForm">
+                            <div class="mb-3">
+                                <label for="incomeSourceName" class="form-label">Income Source Name</label>
+                                <input type="text" class="form-control" id="incomeSourceName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="incomeSourceAmount" class="form-label">Amount ($)</label>
+                                <input type="number" class="form-control" id="incomeSourceAmount" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Add Income Source</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Bootstrap JS -->
@@ -316,10 +341,10 @@
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         let currentMonthIndex = 0;
 
-        // Load data from localStorage or initialize with default values
+        // Initialize data with income sources
         const savedData = JSON.parse(localStorage.getItem('financeData'));
         const dataByMonth = savedData || Array.from({ length: 12 }, () => ({
-            income: 0,
+            incomeSources: [], // Ensure this is initialized as an empty array
             expenses: [],
         }));
 
@@ -363,10 +388,8 @@
             const currentData = dataByMonth[currentMonthIndex];
             currentData.expenses.forEach((expense, idx) => {
                 const row = document.createElement("tr");
-                
-                // Extract the day of the month from the due date
                 const dueDate = new Date(expense.dueDate);
-                const dayOfMonth = dueDate.getDate(); // Get the day of the month
+                const dayOfMonth = dueDate.getDate();
 
                 row.innerHTML = `
                     <td>${expense.item}</td>
@@ -399,17 +422,14 @@
                 return;
             }
 
-            // Determine the number of entries to add based on frequency
             let occurrences = 1;
             let interval = 0;
             if (frequency === 'Weekly') {
-                occurrences = 4; // Add 4 entries for weekly expenses
-                interval = 7; // Weekly interval
+                occurrences = 4;
+                interval = 7;
             } else if (frequency === 'Bi-Weekly') {
-                occurrences = 2; // Add 2 entries for bi-weekly expenses
-                interval = 14; // Bi-weekly interval
-            } else if (frequency === 'Monthly') {
-                occurrences = 1; // Add 1 entry for monthly expenses
+                occurrences = 2;
+                interval = 14;
             }
 
             for (let i = 0; i < occurrences; i++) {
@@ -429,44 +449,17 @@
                 dataByMonth[currentMonthIndex].expenses.push(newExpense);
             }
 
-            // Carry expenses to future months
-            for (let i = currentMonthIndex + 1; i < 12; i++) {
-                for (let j = 0; j < occurrences; j++) {
-                    const newDueDate = new Date(dueDate);
-                    newDueDate.setDate(newDueDate.getDate() + j * interval);
-                    const formattedDueDate = newDueDate.toISOString().split('T')[0];
-
-                    const futureExpense = { 
-                        item, 
-                        amount, 
-                        dueDate: formattedDueDate, 
-                        category, 
-                        frequency, 
-                        paid: false, 
-                        skipped: false 
-                    };
-                    dataByMonth[i].expenses.push(futureExpense);
-                }
-            }
-
             renderExpensesTable();
             updateSummary();
-            saveData(); // Save changes
+            saveData();
         };
 
         // Delete expense
         function deleteExpense(index) {
-            // Remove the expense from the current month
             dataByMonth[currentMonthIndex].expenses.splice(index, 1);
-
-            // Remove the expense from all subsequent months
-            for (let i = currentMonthIndex + 1; i < 12; i++) {
-                dataByMonth[i].expenses.splice(index, 1);
-            }
-
             renderExpensesTable();
             updateSummary();
-            saveData(); // Save changes
+            saveData();
         }
 
         // Toggle paid status
@@ -474,11 +467,11 @@
             const expense = dataByMonth[currentMonthIndex].expenses[index];
             expense.paid = !expense.paid;
             if (expense.paid) {
-                expense.skipped = false; // Uncheck skip if paid is checked
+                expense.skipped = false;
             }
             renderExpensesTable();
             updateSummary();
-            saveData(); // Save changes
+            saveData();
         }
 
         // Toggle skip status
@@ -486,16 +479,73 @@
             const expense = dataByMonth[currentMonthIndex].expenses[index];
             expense.skipped = !expense.skipped;
             if (expense.skipped) {
-                expense.paid = false; // Uncheck paid if skip is checked
+                expense.paid = false;
             }
             renderExpensesTable();
             updateSummary();
-            saveData(); // Save changes
+            saveData();
+        }
+
+        // Render income sources
+        function renderIncomeSources() {
+            const incomeSourceList = document.getElementById("incomeSourceList");
+            incomeSourceList.innerHTML = "";
+
+            const currentData = dataByMonth[currentMonthIndex];
+            currentData.incomeSources.forEach((source, idx) => {
+                const listItem = document.createElement("li");
+                listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                listItem.innerHTML = `
+                    ${source.name}: $${source.amount.toFixed(2)}
+                    <button class="btn btn-danger btn-sm" onclick="removeIncomeSource(${idx})">Remove</button>
+                `;
+                incomeSourceList.appendChild(listItem);
+            });
+        }
+
+        // Add new income source
+        document.getElementById("incomeSourceForm").onsubmit = (e) => {
+            e.preventDefault();
+            const name = document.getElementById("incomeSourceName").value;
+            const amount = parseFloat(document.getElementById("incomeSourceAmount").value);
+
+            if (!name || isNaN(amount) || amount <= 0) {
+                alert("Please enter a valid income source and amount!");
+                return;
+            }
+
+            const newIncomeSource = { name, amount };
+            if (!dataByMonth[currentMonthIndex].incomeSources) {
+                dataByMonth[currentMonthIndex].incomeSources = [];
+            }
+            dataByMonth[currentMonthIndex].incomeSources.push(newIncomeSource);
+
+            updateIncomeDisplay();
+            saveData();
+            document.getElementById("incomeSourceForm").reset();
+            bootstrap.Modal.getInstance(document.getElementById('addIncomeSourceModal')).hide();
+        };
+
+        // Remove income source
+        function removeIncomeSource(index) {
+            dataByMonth[currentMonthIndex].incomeSources.splice(index, 1);
+            updateIncomeDisplay();
+            saveData();
+        }
+
+        // Update income display
+        function updateIncomeDisplay() {
+            const currentData = dataByMonth[currentMonthIndex];
+            const totalIncome = currentData.incomeSources.reduce((sum, source) => sum + source.amount, 0);
+            document.getElementById("currentIncome").textContent = `$${totalIncome.toFixed(2)}`;
+            renderIncomeSources();
+            updateSummary();
         }
 
         // Update summary
         function updateSummary() {
             const currentData = dataByMonth[currentMonthIndex];
+            const totalIncome = currentData.incomeSources.reduce((sum, source) => sum + source.amount, 0);
 
             const totalExpenses = currentData.expenses.reduce((sum, expense) => {
                 if (expense.skipped) return sum;
@@ -503,12 +553,12 @@
             }, 0);
 
             const totalPaid = currentData.expenses.reduce((sum, expense) => sum + (expense.paid ? expense.amount : 0), 0);
-            const remainingBalance = currentData.income - totalExpenses;
+            const remainingBalance = totalIncome - totalExpenses;
 
             document.getElementById("totalExpenses").textContent = totalExpenses.toFixed(2);
             document.getElementById("totalPaid").textContent = totalPaid.toFixed(2);
             document.getElementById("remainingBalance").textContent = remainingBalance.toFixed(2);
-            document.getElementById("currentIncome").textContent = `$${currentData.income.toFixed(2)}`;
+            document.getElementById("currentIncome").textContent = `$${totalIncome.toFixed(2)}`;
 
             updateExpenseChart();
         }
@@ -570,91 +620,51 @@
                             color: 'white',
                             font: {
                                 weight: 'bold'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Expense Distribution by Category',
-                                color: 'white',
-                                font: {
-                                    size: 18,
-                                    weight: 'bold'
-                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Expense Distribution by Category',
+                            color: 'white',
+                            font: {
+                                size: 18,
+                                weight: 'bold'
                             }
                         }
                     }
                 },
-                plugins: [ChartDataLabels] // Ensure you include the ChartDataLabels plugin
+                plugins: [ChartDataLabels]
             });
         }
 
-        // Update income
-        document.getElementById("updateIncomeButton").onclick = () => {
-            const income = parseFloat(document.getElementById("incomeInput").value);
-            if (isNaN(income) || income <= 0) {
-                alert("Please enter a valid income!");
-                return;
-            }
-            dataByMonth[currentMonthIndex].income = income;
-
-            // Carry income to future months
-            for (let i = currentMonthIndex + 1; i < 12; i++) {
-                if (dataByMonth[i].income === 0) {
-                    dataByMonth[i].income = income;
-                }
-            }
-
-            updateSummary();
-            saveData(); // Save changes
-        };
-
         // Initialize
-        renderMonthNavbar();
-        renderExpensesTable();
-        updateSummary();
-
-        // Toggle button text and icon
-        document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
-            button.addEventListener('click', function() {
-                const icon = this.querySelector('.toggle-icon');
-                const isExpanded = this.getAttribute('aria-expanded') === 'true';
-
-                if (isExpanded) {
-                    icon.classList.remove('fa-chevron-up');
-                    icon.classList.add('fa-chevron-down');
-                } else {
-                    icon.classList.remove('fa-chevron-down');
-                    icon.classList.add('fa-chevron-up');
-                }
-            });
-        });
-
         document.addEventListener('DOMContentLoaded', () => {
-            // Prefill the due date with today's date
+            renderMonthNavbar();
+            renderExpensesTable();
+            updateIncomeDisplay();
+            updateSummary();
+
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('newDueDate').value = today;
 
-            // Initialize Bootstrap tooltips
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
 
-            // Format amount input as currency
-            const amountInput = document.getElementById('newAmount');
-            amountInput.addEventListener('blur', () => {
-                const value = parseFloat(amountInput.value);
-                if (!isNaN(value)) {
-                    amountInput.value = value.toFixed(2);
-                }
-            });
+            document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const icon = this.querySelector('.toggle-icon');
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
 
-            // Format income input as currency
-            const incomeInput = document.getElementById('incomeInput');
-            incomeInput.addEventListener('blur', () => {
-                const value = parseFloat(incomeInput.value);
-                if (!isNaN(value)) {
-                    incomeInput.value = value.toFixed(2);
-                }
+                    if (isExpanded) {
+                        icon.classList.remove('fa-chevron-up');
+                        icon.classList.add('fa-chevron-down');
+                    } else {
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-up');
+                    }
+                });
             });
         });
     </script>
