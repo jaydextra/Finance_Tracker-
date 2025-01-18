@@ -148,70 +148,9 @@
         /* Responsive Table */
         .expenses-table {
             width: 100%;
-            overflow-x: auto;
-            display: block;
             border-collapse: collapse;
-        }
-
-        /* Mobile-specific styles */
-        @media (max-width: 576px) {
-            .expenses-table th, .expenses-table td {
-                white-space: nowrap;
-                padding: 8px;
-                text-align: center;
-            }
-
-            .expenses-table {
-                display: flex;
-                flex-direction: column;
-            }
-
-            .expenses-table thead {
-                display: none;
-            }
-
-            .expenses-table tbody {
-                display: flex;
-                flex-direction: column;
-            }
-
-            .expenses-table tr {
-                display: flex;
-                flex-direction: row;
-                justify-content: space-between;
-                border-bottom: 1px solid #dee2e6;
-            }
-
-            .expenses-table td {
-                flex: 1;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 10px;
-            }
-
-            .card-title {
-                font-size: 1.25rem;
-            }
-
-            .gradient-text {
-                font-size: 2rem;
-            }
-
-            .summary-card {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .summary-text, .chart-container {
-                max-width: 100%;
-                margin-bottom: 10px;
-            }
-        }
-
-        .expenses-table {
-            width: 100%;
-            border-collapse: collapse;
+            overflow-x: auto; /* Allow horizontal scrolling */
+            display: block; /* Ensure the table can scroll */
         }
 
         .expenses-table th, .expenses-table td {
@@ -230,7 +169,7 @@
 
             .expenses-table {
                 display: block;
-                overflow-x: auto;
+                overflow-x: auto; /* Allow horizontal scrolling */
             }
 
             .expenses-table thead {
@@ -247,6 +186,11 @@
 
             .expenses-table td {
                 display: table-cell;
+                padding: 10px;
+            }
+
+            .expenses-table td input[type="checkbox"] {
+                margin: 0 auto; /* Center checkboxes */
             }
         }
     </style>
