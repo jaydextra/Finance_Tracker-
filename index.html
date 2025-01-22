@@ -409,104 +409,97 @@
         }
 
         function renderExpensesTable() {
-    const tableBody = document.getElementById("expensesTable");
-    tableBody.innerHTML = "";
+            const tableBody = document.getElementById("expensesTable");
+            tableBody.innerHTML = "";
 
-    const currentData = dataByMonth[currentMonthIndex];
-    currentData.expenses.forEach((expense, idx) => {
-        const row = document.createElement("tr");
+            const currentData = dataByMonth[currentMonthIndex];
+            currentData.expenses.forEach((expense, idx) => {
+                const row = document.createElement("tr");
 
-        row.innerHTML = `
-            <td><input type="checkbox" ${expense.paid ? "checked" : ""} onclick="togglePaid(${idx})"></td>
-            <td class="editable">${expense.item}</td>
-            <td class="editable">$${expense.amount.toFixed(2)}</td>
-            <td class="editable">${new Date(expense.dueDate).toLocaleDateString()}</td>
-            <td class="editable">${expense.category}</td>
-            <td class="editable">${expense.frequency}</td>
-            <td><input type="checkbox" ${expense.skipped ? "checked" : ""} onclick="toggleSkip(${idx})"></td>
-            <td><button class="btn btn-danger btn-sm" onclick="confirmAndDeleteExpense(${idx})">Delete</button></td>
-            <td><button class="btn btn-warning btn-sm" onclick="toggleEditRow(${idx}, this)">Edit</button></td>
-        `;
+                row.innerHTML = `
+                    <td><input type="checkbox" ${expense.paid ? "checked" : ""} onclick="togglePaid(${idx})"></td>
+                    <td class="editable">${expense.item}</td>
+                    <td class="editable">$${expense.amount.toFixed(2)}</td>
+                    <td class="editable">${new Date(expense.dueDate).toLocaleDateString()}</td>
+                    <td class="editable">${expense.category}</td>
+                    <td class="editable">${expense.frequency}</td>
+                    <td><input type="checkbox" ${expense.skipped ? "checked" : ""} onclick="toggleSkip(${idx})"></td>
+                    <td><button class="btn btn-danger btn-sm" onclick="confirmAndDeleteExpense(${idx})">Delete</button></td>
+                    <td><button class="btn btn-warning btn-sm" onclick="toggleEditRow(${idx}, this)">Edit</button></td>
+                `;
 
-        if (expense.paid) {
-            row.classList.add("highlight-row");
+                if (expense.paid) {
+                    row.classList.add("highlight-row");
+                }
+
+                tableBody.appendChild(row);
+            });
         }
 
-        tableBody.appendChild(row);
-    });
-}
+        function toggleEditRow(index, button) {
+            const currentData = dataByMonth[currentMonthIndex];
+            const row = button.parentElement.parentElement; // Get the table row
+            const editableCells = row.querySelectorAll(".editable");
+            const keys = ["item", "amount", "dueDate", "category", "frequency"]; // Include frequency in keys
 
+            if (button.textContent === "Edit") {
+                // Enable editing
+                editableCells.forEach((cell) => {
+                    cell.setAttribute("contenteditable", "true");
+                    cell.style.backgroundColor = "#e0f7fa"; // Optional visual indicator for editing
+                });
+                button.textContent = "Save";
+                button.classList.remove("btn-info"); // Remove previous color class
+                button.classList.add("btn-success"); // Change to green when in save mode
+            } else {
+                // Save changes
+                editableCells.forEach((cell, cellIdx) => {
+                    const key = keys[cellIdx]; // Map column index to expense property
+                    let value = cell.textContent.trim();
 
+                    if (key === "amount") {
+                        value = parseFloat(value.replace("$", ""));
+                        if (isNaN(value) || value <= 0) {
+                            alert("Please enter a valid amount greater than 0.");
+                            return;
+                        }
+                    }
+                    if (key === "dueDate") {
+                        value = new Date(value).toISOString();
+                        if (isNaN(Date.parse(value))) {
+                            alert("Please enter a valid date.");
+                            return;
+                        }
+                    }
+                    if (key === "frequency" && !["Weekly", "Bi-Weekly", "Monthly"].includes(value)) {
+                        alert("Please enter a valid frequency: Weekly, Bi-Weekly, or Monthly.");
+                        return;
+                    }
 
-function toggleEditRow(index, button) {
-    const currentData = dataByMonth[currentMonthIndex];
-    const row = button.parentElement.parentElement; // Get the table row
-    const editableCells = row.querySelectorAll(".editable");
-    const keys = ["item", "amount", "dueDate", "category", "frequency"]; // Include frequency in keys
+                    currentData.expenses[index][key] = value; // Update the data structure
+                });
 
-    if (button.textContent === "Edit") {
-        // Enable editing
-        editableCells.forEach((cell) => {
-            cell.setAttribute("contenteditable", "true");
-            cell.style.backgroundColor = "#e0f7fa"; // Optional visual indicator for editing
-        });
-        button.textContent = "Save";
-        button.classList.remove("btn-info"); // Remove previous color class
-        button.classList.add("btn-success"); // Change to green when in save mode
-    } else {
-        // Save changes
-        editableCells.forEach((cell, cellIdx) => {
-            const key = keys[cellIdx]; // Map column index to expense property
-            let value = cell.textContent.trim();
-
-            if (key === "amount") {
-                value = parseFloat(value.replace("$", ""));
-                if (isNaN(value) || value <= 0) {
-                    alert("Please enter a valid amount greater than 0.");
-                    return;
-                }
+                button.textContent = "Edit";
+                button.classList.remove("btn-success"); // Remove green
+                button.classList.add("btn-info"); // Revert to light blue
+                saveData(); // Save updated data to localStorage
+                renderExpensesTable(); // Re-render the table
             }
-            if (key === "dueDate") {
-                value = new Date(value).toISOString();
-                if (isNaN(Date.parse(value))) {
-                    alert("Please enter a valid date.");
-                    return;
-                }
-            }
-            if (key === "frequency" && !["Weekly", "Bi-Weekly", "Monthly"].includes(value)) {
-                alert("Please enter a valid frequency: Weekly, Bi-Weekly, or Monthly.");
-                return;
-            }
-
-            currentData.expenses[index][key] = value; // Update the data structure
-        });
-
-        button.textContent = "Edit";
-        button.classList.remove("btn-success"); // Remove green
-        button.classList.add("btn-info"); // Revert to light blue
-        saveData(); // Save updated data to localStorage
-        renderExpensesTable(); // Re-render the table
-    }
-}
-
-
-
-
-
-    // Function to confirm before deleting an expense
-    function confirmAndDeleteExpense(index) {
-        const isConfirmed = confirm("Are you sure you want to delete this expense?");
-        if (isConfirmed) {
-            deleteExpense(index);
         }
-    }
 
-    // Existing function to handle the actual deletion
-    function deleteExpense(index) {
-        dataByMonth[currentMonthIndex].expenses.splice(index, 1);
-        renderExpensesTable(); // Re-render the table after deletion
-    }
+        // Function to confirm before deleting an expense
+        function confirmAndDeleteExpense(index) {
+            const isConfirmed = confirm("Are you sure you want to delete this expense?");
+            if (isConfirmed) {
+                deleteExpense(index);
+            }
+        }
 
+        // Existing function to handle the actual deletion
+        function deleteExpense(index) {
+            dataByMonth[currentMonthIndex].expenses.splice(index, 1);
+            renderExpensesTable(); // Re-render the table after deletion
+        }
 
         // Add new expense
         document.getElementById("addExpenseButton").onclick = (e) => {
@@ -586,37 +579,36 @@ function toggleEditRow(index, button) {
             saveData();
         }
 
-            // Render income sources
-    function renderIncomeSources() {
-        const incomeSourceList = document.getElementById("incomeSourceList");
-        incomeSourceList.innerHTML = "";
+        // Render income sources
+        function renderIncomeSources() {
+            const incomeSourceList = document.getElementById("incomeSourceList");
+            incomeSourceList.innerHTML = "";
 
-        const currentData = dataByMonth[currentMonthIndex];
-        currentData.incomeSources.forEach((source, idx) => {
-            const listItem = document.createElement("li");
-            listItem.className = "list-group-item d-flex justify-content-between align-items-center";
-            listItem.innerHTML = `
-                ${source.name}: $${source.amount.toFixed(2)}
-                <button class="btn btn-danger btn-sm" onclick="confirmAndRemoveIncomeSource(${idx})">Remove</button>
-            `;
-            incomeSourceList.appendChild(listItem);
-        });
-    }
-
-    // Function to confirm before removing an income source
-    function confirmAndRemoveIncomeSource(index) {
-        const isConfirmed = confirm("Are you sure you want to delete this income source?");
-        if (isConfirmed) {
-            removeIncomeSource(index);
+            const currentData = dataByMonth[currentMonthIndex];
+            currentData.incomeSources.forEach((source, idx) => {
+                const listItem = document.createElement("li");
+                listItem.className = "list-group-item d-flex justify-content-between align-items-center";
+                listItem.innerHTML = `
+                    ${source.name}: $${source.amount.toFixed(2)}
+                    <button class="btn btn-danger btn-sm" onclick="confirmAndRemoveIncomeSource(${idx})">Remove</button>
+                `;
+                incomeSourceList.appendChild(listItem);
+            });
         }
-    }
 
-    // Existing function to handle the actual removal
-    function removeIncomeSource(index) {
-        dataByMonth[currentMonthIndex].incomeSources.splice(index, 1);
-        renderIncomeSources(); // Re-render the list after removal
-    }
+        // Function to confirm before removing an income source
+        function confirmAndRemoveIncomeSource(index) {
+            const isConfirmed = confirm("Are you sure you want to delete this income source?");
+            if (isConfirmed) {
+                removeIncomeSource(index);
+            }
+        }
 
+        // Existing function to handle the actual removal
+        function removeIncomeSource(index) {
+            dataByMonth[currentMonthIndex].incomeSources.splice(index, 1);
+            renderIncomeSources(); // Re-render the list after removal
+        }
 
         // Add new income source
         document.getElementById("incomeSourceForm").onsubmit = (e) => {
@@ -754,13 +746,16 @@ function toggleEditRow(index, button) {
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            currentMonthIndex = today.getMonth(); // Set currentMonthIndex to the current month
+            document.getElementById("monthDropdown").textContent = `Month: ${months[currentMonthIndex]}`; // Update dropdown text
             populateMonthDropdown();
             renderExpensesTable();
             updateIncomeDisplay();
             updateSummary();
 
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('newDueDate').value = today;
+            const todayDate = today.toISOString().split('T')[0];
+            document.getElementById('newDueDate').value = todayDate;
 
             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -785,70 +780,69 @@ function toggleEditRow(index, button) {
     </script>
 
     <!-- Success Modal -->
-<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="successModalLabel">Success</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Expense added successfully!
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="successModalLabel">Success</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Expense added successfully!
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const expenseForm = document.querySelector("#addExpenseCollapse form");
-        const addExpenseButton = document.getElementById("addExpenseButton");
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const expenseForm = document.querySelector("#addExpenseCollapse form");
+            const addExpenseButton = document.getElementById("addExpenseButton");
 
-        // Add event listener for adding an expense
-        addExpenseButton.addEventListener("click", function (event) {
-            event.preventDefault();
+            // Add event listener for adding an expense
+            addExpenseButton.addEventListener("click", function (event) {
+                event.preventDefault();
 
-            // Retrieve form values
-            const newItem = document.getElementById("newItem").value.trim();
-            const newAmount = parseFloat(document.getElementById("newAmount").value);
-            const newDueDate = document.getElementById("newDueDate").value.trim();
-            const newCategory = document.getElementById("newCategory").value;
-            const newFrequency = document.getElementById("newFrequency").value;
+                // Retrieve form values
+                const newItem = document.getElementById("newItem").value.trim();
+                const newAmount = parseFloat(document.getElementById("newAmount").value);
+                const newDueDate = document.getElementById("newDueDate").value.trim();
+                const newCategory = document.getElementById("newCategory").value;
+                const newFrequency = document.getElementById("newFrequency").value;
 
-            // Validate form inputs
-            if (!newItem || isNaN(newAmount) || !newDueDate || !newCategory || !newFrequency) {
-                alert("Please fill in all required fields.");
-                return;
-            }
+                // Validate form inputs
+                if (!newItem || isNaN(newAmount) || !newDueDate || !newCategory || !newFrequency) {
+                    alert("Please fill in all required fields.");
+                    return;
+                }
 
-            // Add expense to the data structure
-            const newExpense = {
-                item: newItem,
-                amount: newAmount,
-                dueDate: newDueDate,
-                category: newCategory,
-                frequency: newFrequency,
-                paid: false,
-                skipped: false,
-            };
+                // Add expense to the data structure
+                const newExpense = {
+                    item: newItem,
+                    amount: newAmount,
+                    dueDate: newDueDate,
+                    category: newCategory,
+                    frequency: newFrequency,
+                    paid: false,
+                    skipped: false,
+                };
 
-            dataByMonth[currentMonthIndex].expenses.push(newExpense);
-            renderExpensesTable();
-            updateSummary();
-            saveData();
+                dataByMonth[currentMonthIndex].expenses.push(newExpense);
+                renderExpensesTable();
+                updateSummary();
+                saveData();
 
-            // Show the success modal
-            const successModal = new bootstrap.Modal(document.getElementById("successModal"));
-            successModal.show();
+                // Show the success modal
+                const successModal = new bootstrap.Modal(document.getElementById("successModal"));
+                successModal.show();
 
-            // Reset the form after submission
-            expenseForm.reset();
+                // Reset the form after submission
+                expenseForm.reset();
+            });
         });
-    });
-</script>
-
+    </script>
 </body>
 </html>
