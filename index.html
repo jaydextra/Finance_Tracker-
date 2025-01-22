@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -367,21 +368,27 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        let currentMonthIndex = 0;
+let currentMonthIndex = new Date().getMonth(); // Get the current month index (0 = Jan, 11 = Dec)
 
         // Initialize data with income sources
-        const savedData = JSON.parse(localStorage.getItem('financeData'));
-        const dataByMonth = savedData || Array.from({ length: 12 }, () => ({
-            incomeSources: [], // Ensure this is initialized as an empty array
-            expenses: [],
-        }));
+        let dataByMonth = [];
 
-        let expenseChart;
-
-        // Save data to localStorage
-        function saveData() {
-            localStorage.setItem('financeData', JSON.stringify(dataByMonth));
+        function loadData() {
+            try {
+                const savedData = JSON.parse(localStorage.getItem('financeData'));
+                dataByMonth = savedData || Array.from({ length: 12 }, () => ({
+                    incomeSources: [],
+                    expenses: [],
+                }));
+            } catch (e) {
+                console.error("Failed to load data from localStorage:", e);
+                dataByMonth = Array.from({ length: 12 }, () => ({
+                    incomeSources: [],
+                    expenses: [],
+                }));
+            }
         }
+
 
         // Populate month dropdown
         function populateMonthDropdown() {
