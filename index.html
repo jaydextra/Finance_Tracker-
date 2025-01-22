@@ -319,14 +319,15 @@
                 <table class="table table-bordered table-striped table-hover expenses-table">
                     <thead>
                         <tr>
+                            <th>Paid</th>
                             <th>Item</th>
-                            <th>Category</th>
                             <th>Amount</th>
                             <th>Due Date</th>
+                            <th>Category</th>
                             <th>Frequency</th>
-                            <th>Paid</th>
-                            <th>Action</th>
                             <th>Skip</th>
+                            <th>Action</th>
+                            <th>Edit</th>
                         </tr>
                     </thead>
                     <tbody id="expensesTable">
@@ -407,33 +408,90 @@
             updateSummary();
         }
 
-       // Render expenses table
-    function renderExpensesTable() {
-        const tableBody = document.getElementById("expensesTable");
-        tableBody.innerHTML = "";
+        function renderExpensesTable() {
+    const tableBody = document.getElementById("expensesTable");
+    tableBody.innerHTML = "";
 
-        const currentData = dataByMonth[currentMonthIndex];
-        currentData.expenses.forEach((expense, idx) => {
-            const row = document.createElement("tr");
-            const dueDate = new Date(expense.dueDate);
-            const dayOfMonth = dueDate.getDate();
+    const currentData = dataByMonth[currentMonthIndex];
+    currentData.expenses.forEach((expense, idx) => {
+        const row = document.createElement("tr");
 
-            row.innerHTML = `
-                <td>${expense.item}</td>
-                <td>${expense.category}</td>
-                <td>$${expense.amount.toFixed(2)}</td>
-                <td>${dayOfMonth}</td>
-                <td>${expense.frequency}</td>
-                <td><input type="checkbox" ${expense.paid ? "checked" : ""} onclick="togglePaid(${idx})"></td>
-                <td><button class="btn btn-danger btn-sm" onclick="confirmAndDeleteExpense(${idx})">Delete</button></td>
-                <td><input type="checkbox" ${expense.skipped ? "checked" : ""} onclick="toggleSkip(${idx})"></td>
-            `;
-            if (expense.paid) {
-                row.classList.add("highlight-row");
-            }
-            tableBody.appendChild(row);
+        row.innerHTML = `
+            <td><input type="checkbox" ${expense.paid ? "checked" : ""} onclick="togglePaid(${idx})"></td>
+            <td class="editable">${expense.item}</td>
+            <td class="editable">$${expense.amount.toFixed(2)}</td>
+            <td class="editable">${new Date(expense.dueDate).toLocaleDateString()}</td>
+            <td class="editable">${expense.category}</td>
+            <td class="editable">${expense.frequency}</td>
+            <td><input type="checkbox" ${expense.skipped ? "checked" : ""} onclick="toggleSkip(${idx})"></td>
+            <td><button class="btn btn-danger btn-sm" onclick="confirmAndDeleteExpense(${idx})">Delete</button></td>
+            <td><button class="btn btn-warning btn-sm" onclick="toggleEditRow(${idx}, this)">Edit</button></td>
+        `;
+
+        if (expense.paid) {
+            row.classList.add("highlight-row");
+        }
+
+        tableBody.appendChild(row);
+    });
+}
+
+
+
+function toggleEditRow(index, button) {
+    const currentData = dataByMonth[currentMonthIndex];
+    const row = button.parentElement.parentElement; // Get the table row
+    const editableCells = row.querySelectorAll(".editable");
+    const keys = ["item", "amount", "dueDate", "category", "frequency"]; // Include frequency in keys
+
+    if (button.textContent === "Edit") {
+        // Enable editing
+        editableCells.forEach((cell) => {
+            cell.setAttribute("contenteditable", "true");
+            cell.style.backgroundColor = "#e0f7fa"; // Optional visual indicator for editing
         });
+        button.textContent = "Save";
+        button.classList.remove("btn-info"); // Remove previous color class
+        button.classList.add("btn-success"); // Change to green when in save mode
+    } else {
+        // Save changes
+        editableCells.forEach((cell, cellIdx) => {
+            const key = keys[cellIdx]; // Map column index to expense property
+            let value = cell.textContent.trim();
+
+            if (key === "amount") {
+                value = parseFloat(value.replace("$", ""));
+                if (isNaN(value) || value <= 0) {
+                    alert("Please enter a valid amount greater than 0.");
+                    return;
+                }
+            }
+            if (key === "dueDate") {
+                value = new Date(value).toISOString();
+                if (isNaN(Date.parse(value))) {
+                    alert("Please enter a valid date.");
+                    return;
+                }
+            }
+            if (key === "frequency" && !["Weekly", "Bi-Weekly", "Monthly"].includes(value)) {
+                alert("Please enter a valid frequency: Weekly, Bi-Weekly, or Monthly.");
+                return;
+            }
+
+            currentData.expenses[index][key] = value; // Update the data structure
+        });
+
+        button.textContent = "Edit";
+        button.classList.remove("btn-success"); // Remove green
+        button.classList.add("btn-info"); // Revert to light blue
+        saveData(); // Save updated data to localStorage
+        renderExpensesTable(); // Re-render the table
     }
+}
+
+
+
+
 
     // Function to confirm before deleting an expense
     function confirmAndDeleteExpense(index) {
@@ -681,7 +739,7 @@
                         },
                         title: {
                             display: true,
-                            text: 'Expense Distribution by Category',
+                            text: 'Expenses by Category',
                             color: 'white',
                             font: {
                                 size: 18,
