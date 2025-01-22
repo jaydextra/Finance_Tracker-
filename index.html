@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -368,47 +367,38 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-let currentMonthIndex = new Date().getMonth(); // Get the current month index (0 = Jan, 11 = Dec)
+        let currentMonthIndex = 0;
 
         // Initialize data with income sources
-        let dataByMonth = [];
+        const savedData = JSON.parse(localStorage.getItem('financeData'));
+        const dataByMonth = savedData || Array.from({ length: 12 }, () => ({
+            incomeSources: [], // Ensure this is initialized as an empty array
+            expenses: [],
+        }));
 
-        function loadData() {
-            try {
-                const savedData = JSON.parse(localStorage.getItem('financeData'));
-                dataByMonth = savedData || Array.from({ length: 12 }, () => ({
-                    incomeSources: [],
-                    expenses: [],
-                }));
-            } catch (e) {
-                console.error("Failed to load data from localStorage:", e);
-                dataByMonth = Array.from({ length: 12 }, () => ({
-                    incomeSources: [],
-                    expenses: [],
-                }));
-            }
+        let expenseChart;
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('financeData', JSON.stringify(dataByMonth));
         }
-
 
         // Populate month dropdown
         function populateMonthDropdown() {
-    const dropdownMenu = document.getElementById("monthDropdownMenu");
-    dropdownMenu.innerHTML = ""; // Clear existing options
+            const dropdownMenu = document.getElementById("monthDropdownMenu");
+            dropdownMenu.innerHTML = ""; // Clear existing options
 
-    months.forEach((month, index) => {
-        const listItem = document.createElement("li");
-        const link = document.createElement("a");
-        link.className = "dropdown-item";
-        link.href = "#";
-        link.textContent = month;
-        link.onclick = () => switchMonth(index); // Change the month when clicked
-        listItem.appendChild(link);
-        dropdownMenu.appendChild(listItem);
-    });
-
-    // Set default dropdown label to the current month
-    document.getElementById("monthDropdown").textContent = `Month: ${months[currentMonthIndex]}`;
-}
+            months.forEach((month, index) => {
+                const listItem = document.createElement("li");
+                const link = document.createElement("a");
+                link.className = "dropdown-item";
+                link.href = "#";
+                link.textContent = month;
+                link.onclick = () => switchMonth(index);
+                listItem.appendChild(link);
+                dropdownMenu.appendChild(listItem);
+            });
+        }
 
         // Switch month
         function switchMonth(index) {
