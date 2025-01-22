@@ -392,20 +392,23 @@ let currentMonthIndex = new Date().getMonth(); // Get the current month index (0
 
         // Populate month dropdown
         function populateMonthDropdown() {
-            const dropdownMenu = document.getElementById("monthDropdownMenu");
-            dropdownMenu.innerHTML = ""; // Clear existing options
+    const dropdownMenu = document.getElementById("monthDropdownMenu");
+    dropdownMenu.innerHTML = ""; // Clear existing options
 
-            months.forEach((month, index) => {
-                const listItem = document.createElement("li");
-                const link = document.createElement("a");
-                link.className = "dropdown-item";
-                link.href = "#";
-                link.textContent = month;
-                link.onclick = () => switchMonth(index);
-                listItem.appendChild(link);
-                dropdownMenu.appendChild(listItem);
-            });
-        }
+    months.forEach((month, index) => {
+        const listItem = document.createElement("li");
+        const link = document.createElement("a");
+        link.className = "dropdown-item";
+        link.href = "#";
+        link.textContent = month;
+        link.onclick = () => switchMonth(index); // Change the month when clicked
+        listItem.appendChild(link);
+        dropdownMenu.appendChild(listItem);
+    });
+
+    // Set default dropdown label to the current month
+    document.getElementById("monthDropdown").textContent = `Month: ${months[currentMonthIndex]}`;
+}
 
         // Switch month
         function switchMonth(index) {
