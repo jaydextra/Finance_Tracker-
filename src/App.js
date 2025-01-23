@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 /* eslint-disable no-unused-vars */
-=======
->>>>>>> 5f5640ec98c9cb56a27782e2182d8d5c9237d10e
 // src/App.js
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import './App.css';
@@ -38,11 +35,7 @@ ChartJS.register(
 // Create theme context
 const ThemeContext = createContext();
 
-<<<<<<< HEAD
 // Add this before the App component.
-=======
-// Add this before the App component
->>>>>>> 5f5640ec98c9cb56a27782e2182d8d5c9237d10e
 export const useTheme = () => useContext(ThemeContext);
 
 function App() {
@@ -185,11 +178,7 @@ function App() {
 
       setChart(newChart);
     }
-<<<<<<< HEAD
   }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart]);
-=======
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);
->>>>>>> 5f5640ec98c9cb56a27782e2182d8d5c9237d10e
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
