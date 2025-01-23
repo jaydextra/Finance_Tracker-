@@ -60,6 +60,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('budget');
   const [creditCards, setCreditCards] = useState([]);
   const [customCategory, setCustomCategory] = useState('');
+  const [isExpenseListOpen, setIsExpenseListOpen] = useState(true);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -723,6 +724,21 @@ function App() {
     localStorage.setItem('creditCards', JSON.stringify(newCards));
   };
 
+  // Add function to calculate payment summary
+  const calculatePaymentSummary = () => {
+    const expenses = filterTransactions('expense');
+    const total = expenses.reduce((sum, t) => sum + t.amount, 0);
+    const paid = expenses.reduce((sum, t) => t.paid ? sum + t.amount : sum, 0);
+    const remaining = total - paid;
+    
+    return {
+      total: total.toFixed(2),
+      paid: paid.toFixed(2),
+      remaining: remaining.toFixed(2),
+      progress: total > 0 ? (paid / total * 100).toFixed(1) : 0
+    };
+  };
+
   return (
     <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
       <header className="finance-header">
@@ -1096,129 +1112,181 @@ function App() {
             <div className="col-12">
               <div className="card">
                 <div className="card-header bg-danger text-white">
-                  <h3 className="mb-0">Expenses List</h3>
-                </div>
-                <div className="card-body">
-                  <div className="table-responsive">
-                    {/* Mobile-Friendly Expense List */}
-                    <div className="expense-list">
-                      {filterTransactions('expense').map(transaction => (
-                        <div key={transaction.id} className={`expense-item ${transaction.paid ? 'paid' : ''}`}>
-                          <div className="expense-main">
-                            <div className="expense-checkbox">
-                              <input
-                                type="checkbox"
-                                checked={transaction.paid || false}
-                                onChange={() => togglePaid(transaction.id)}
-                                id={`paid-${transaction.id}`}
-                              />
-                              <label className="checkmark" htmlFor={`paid-${transaction.id}`}></label>
-                            </div>
-                            <div className="expense-content">
-                              {editingId === transaction.id ? (
-                                // Edit mode
-                                <div className="expense-edit-form">
-                                  <input
-                                    type="text"
-                                    value={editingValues.description || ''}
-                                    onChange={(e) => setEditingValues({
-                                      ...editingValues,
-                                      description: e.target.value
-                                    })}
-                                    className="form-control form-control-sm mb-2"
-                                    placeholder="Description"
-                                  />
-                                  <input
-                                    type="number"
-                                    value={editingValues.amount || ''}
-                                    onChange={(e) => setEditingValues({
-                                      ...editingValues,
-                                      amount: parseFloat(e.target.value)
-                                    })}
-                                    className="form-control form-control-sm mb-2"
-                                    step="0.01"
-                                    placeholder="Amount"
-                                  />
-                                  <select
-                                    value={editingValues.category || ''}
-                                    onChange={(e) => setEditingValues({
-                                      ...editingValues,
-                                      category: e.target.value
-                                    })}
-                                    className="form-select form-select-sm mb-2"
-                                  >
-                                    <option value="Bills">Bills</option>
-                                    <option value="Savings">Savings</option>
-                                    <option value="Personal">Personal</option>
-                                    <option value="Other">Other</option>
-                                  </select>
-                                  <input
-                                    type="date"
-                                    value={editingValues.dueDate || ''}
-                                    onChange={(e) => setEditingValues({
-                                      ...editingValues,
-                                      dueDate: e.target.value
-                                    })}
-                                    className="form-control form-control-sm mb-2"
-                                  />
-                                  <div className="edit-actions">
-                                    <button
-                                      onClick={() => saveEdit(transaction.id)}
-                                      className="btn btn-success btn-sm me-2"
-                                    >
-                                      <i className="fas fa-save"></i> Save
-                                    </button>
-                                    <button
-                                      onClick={cancelEdit}
-                                      className="btn btn-secondary btn-sm"
-                                    >
-                                      <i className="fas fa-times"></i> Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                // Display mode
-                                <>
-                                  <div className="expense-primary">
-                                    <span className="expense-title">{transaction.description}</span>
-                                    <span className="expense-amount">${transaction.amount.toFixed(2)}</span>
-                                  </div>
-                                  <div className="expense-secondary">
-                                    {transaction.type === 'expense' && (
-                                      <span className="expense-tag">{transaction.category}</span>
-                                    )}
-                                    <span className="expense-date">{getDayWithSuffix(transaction.dueDate)}</span>
-                                    <span className="expense-frequency">{transaction.frequency}</span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            {!editingId && (
-                              <div className="expense-actions">
-                                <button
-                                  onClick={() => startEditing(transaction)}
-                                  className="btn-icon"
-                                  title="Edit"
-                                >
-                                  <i className="fas fa-edit"></i>
-                                  <span>Edit</span>
-                                </button>
-                                <button
-                                  onClick={() => deleteTransaction(transaction.id, currentMonth)}
-                                  className="btn-icon delete"
-                                  title="Delete"
-                                >
-                                  <i className="fas fa-trash"></i>
-                                  <span>Delete</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <h3 className="mb-0">Expenses List</h3>
+                    <button 
+                      className="btn btn-link text-white" 
+                      onClick={() => setIsExpenseListOpen(!isExpenseListOpen)}
+                    >
+                      <i className={`fas fa-chevron-${isExpenseListOpen ? 'up' : 'down'}`}></i>
+                    </button>
                   </div>
                 </div>
+                
+                {/* Payment Summary Section */}
+                <div className="card-body pb-0">
+                  <div className="payment-summary mb-3">
+                    {(() => {
+                      const summary = calculatePaymentSummary();
+                      return (
+                        <>
+                          <div className="progress mb-2">
+                            <div 
+                              className="progress-bar bg-success" 
+                              role="progressbar" 
+                              style={{width: `${summary.progress}%`}}
+                              aria-valuenow={summary.progress} 
+                              aria-valuemin="0" 
+                              aria-valuemax="100"
+                            >
+                              {summary.progress}%
+                            </div>
+                          </div>
+                          <div className="summary-grid">
+                            <div className="summary-item">
+                              <span className="label">Total Expenses:</span>
+                              <span className="value">${summary.total}</span>
+                            </div>
+                            <div className="summary-item">
+                              <span className="label">Paid:</span>
+                              <span className="value text-success">${summary.paid}</span>
+                            </div>
+                            <div className="summary-item">
+                              <span className="label">Remaining:</span>
+                              <span className="value text-danger">${summary.remaining}</span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <Collapse in={isExpenseListOpen}>
+                  <div>
+                    <div className="card-body">
+                      <div className="table-responsive">
+                        {/* Existing expense list code */}
+                        <div className="expense-list">
+                          {filterTransactions('expense').map(transaction => (
+                            <div key={transaction.id} className={`expense-item ${transaction.paid ? 'paid' : ''}`}>
+                              <div className="expense-main">
+                                <div className="expense-checkbox">
+                                  <input
+                                    type="checkbox"
+                                    checked={transaction.paid || false}
+                                    onChange={() => togglePaid(transaction.id)}
+                                    id={`paid-${transaction.id}`}
+                                  />
+                                  <label className="checkmark" htmlFor={`paid-${transaction.id}`}></label>
+                                </div>
+                                <div className="expense-content">
+                                  {editingId === transaction.id ? (
+                                    // Edit mode
+                                    <div className="expense-edit-form">
+                                      <input
+                                        type="text"
+                                        value={editingValues.description || ''}
+                                        onChange={(e) => setEditingValues({
+                                          ...editingValues,
+                                          description: e.target.value
+                                        })}
+                                        className="form-control form-control-sm mb-2"
+                                        placeholder="Description"
+                                      />
+                                      <input
+                                        type="number"
+                                        value={editingValues.amount || ''}
+                                        onChange={(e) => setEditingValues({
+                                          ...editingValues,
+                                          amount: parseFloat(e.target.value)
+                                        })}
+                                        className="form-control form-control-sm mb-2"
+                                        step="0.01"
+                                        placeholder="Amount"
+                                      />
+                                      <select
+                                        value={editingValues.category || ''}
+                                        onChange={(e) => setEditingValues({
+                                          ...editingValues,
+                                          category: e.target.value
+                                        })}
+                                        className="form-select form-select-sm mb-2"
+                                      >
+                                        <option value="Bills">Bills</option>
+                                        <option value="Savings">Savings</option>
+                                        <option value="Personal">Personal</option>
+                                        <option value="Other">Other</option>
+                                      </select>
+                                      <input
+                                        type="date"
+                                        value={editingValues.dueDate || ''}
+                                        onChange={(e) => setEditingValues({
+                                          ...editingValues,
+                                          dueDate: e.target.value
+                                        })}
+                                        className="form-control form-control-sm mb-2"
+                                      />
+                                      <div className="edit-actions">
+                                        <button
+                                          onClick={() => saveEdit(transaction.id)}
+                                          className="btn btn-success btn-sm me-2"
+                                        >
+                                          <i className="fas fa-save"></i> Save
+                                        </button>
+                                        <button
+                                          onClick={cancelEdit}
+                                          className="btn btn-secondary btn-sm"
+                                        >
+                                          <i className="fas fa-times"></i> Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    // Display mode
+                                    <>
+                                      <div className="expense-primary">
+                                        <span className="expense-title">{transaction.description}</span>
+                                        <span className="expense-amount">${transaction.amount.toFixed(2)}</span>
+                                      </div>
+                                      <div className="expense-secondary">
+                                        {transaction.type === 'expense' && (
+                                          <span className="expense-tag">{transaction.category}</span>
+                                        )}
+                                        <span className="expense-date">{getDayWithSuffix(transaction.dueDate)}</span>
+                                        <span className="expense-frequency">{transaction.frequency}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                {!editingId && (
+                                  <div className="expense-actions">
+                                    <button
+                                      onClick={() => startEditing(transaction)}
+                                      className="btn-icon"
+                                      title="Edit"
+                                    >
+                                      <i className="fas fa-edit"></i>
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => deleteTransaction(transaction.id, currentMonth)}
+                                      className="btn-icon delete"
+                                      title="Delete"
+                                    >
+                                      <i className="fas fa-trash"></i>
+                                      <span>Delete</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Collapse>
               </div>
             </div>
           </div>
