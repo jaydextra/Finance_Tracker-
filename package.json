@@ -2,7 +2,10 @@
   "name": "finance-tracker",
   "version": "0.1.0",
   "private": true,
+<<<<<<< HEAD
+=======
   "homepage": "https://jaydextra.github.io/Finance_Tracker-/",
+>>>>>>> 5f5640ec98c9cb56a27782e2182d8d5c9237d10e
   "dependencies": {
     "@babel/runtime": "^7.26.0",
     "@testing-library/jest-dom": "^5.17.0",
@@ -16,6 +19,18 @@
     "react-bootstrap": "^2.10.8",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.3.1",
+<<<<<<< HEAD
+    "react-scripts": "^5.0.1",
+    "web-vitals": "^3.5.2"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+=======
     "react-scripts": "5.0.1",
     "web-vitals": "^3.5.2"
   },
@@ -26,6 +41,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
+>>>>>>> 5f5640ec98c9cb56a27782e2182d8d5c9237d10e
   },
   "eslintConfig": {
     "extends": [
@@ -46,6 +62,18 @@
     ]
   },
   "devDependencies": {
+<<<<<<< HEAD
+    "@babel/core": "^7.26.0",
+    "@babel/preset-react": "^7.26.3",
+    "gh-pages": "^6.3.0",
+    "html-webpack-plugin": "^5.6.3",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
+  },
+  "homepage": "https://jaydextra.github.io/Finance_Tracker-/"
+=======
     "gh-pages": "^6.1.1"
   }
+>>>>>>> 5f5640ec98c9cb56a27782e2182d8d5c9237d10e
 }
