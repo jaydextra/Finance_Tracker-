@@ -1,7 +1,7 @@
 {
   "name": "finance-tracker",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "homepage": "https://jaydextra.github.io/Finance_Tracker-/",
   "dependencies": {
     "@babel/runtime": "^7.26.0",
