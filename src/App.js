@@ -69,6 +69,7 @@ function App() {
     search: ''
   });
   const [activeForm, setActiveForm] = useState(null);
+  const [categoryColors, setCategoryColors] = useState({});
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -108,146 +109,151 @@ function App() {
     };
   }, [chart]);
 
-  // Add this helper function at the top of your App component
-  const generateColor = (index) => {
+  // Update the generateColor function to use cached colors
+  const generateColor = (category, index) => {
+    if (categoryColors[category]) {
+      return categoryColors[category];
+    }
+
     // Predefined colors for known categories
-    const categoryColors = {
+    const defaultColors = {
       'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
       'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
       'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
     };
 
-    // Color palette for additional categories
+    if (defaultColors[category]) {
+      setCategoryColors(prev => ({ ...prev, [category]: defaultColors[category] }));
+      return defaultColors[category];
+    }
+
+    // Fixed color palette for additional categories
     const colorPalette = [
       { bg: 'rgba(75, 192, 192, 0.8)', border: 'rgba(75, 192, 192, 1)' },
       { bg: 'rgba(153, 102, 255, 0.8)', border: 'rgba(153, 102, 255, 1)' },
       { bg: 'rgba(255, 159, 64, 0.8)', border: 'rgba(255, 159, 64, 1)' },
       { bg: 'rgba(231, 233, 237, 0.8)', border: 'rgba(231, 233, 237, 1)' },
-      { bg: 'rgba(102, 204, 153, 0.8)', border: 'rgba(102, 204, 153, 1)' },
-      { bg: 'rgba(255, 99, 255, 0.8)', border: 'rgba(255, 99, 255, 1)' }
+      { bg: 'rgba(102, 204, 153, 0.8)', border: 'rgba(102, 204, 153, 1)' }
     ];
 
-    return colorPalette[index % colorPalette.length];
+    const newColor = colorPalette[index % colorPalette.length];
+    setCategoryColors(prev => ({ ...prev, [category]: newColor }));
+    return newColor;
   };
 
-  // Update the chart useEffect with debug logs
+  // Update the chart useEffect
   useEffect(() => {
     const ctx = document.getElementById('expenseChart');
-    if (!ctx) {
-      console.log('Canvas context not found');
-      return;
-    }
-
-    console.log('Starting chart creation...');
+    if (!ctx) return;
 
     // Destroy existing chart if it exists
     if (chart) {
       chart.destroy();
-      setChart(null);
     }
 
-    try {
-      const monthKey = `${currentYear}-${currentMonth}`;
-      const monthTransactions = allMonthsTransactions[monthKey] || [];
-      const regularTransactions = transactions.filter(t => {
-        const tDate = new Date(t.date);
-        return tDate.getMonth() === currentMonth && 
-               tDate.getFullYear() === currentYear;
-      });
+    const monthKey = `${currentYear}-${currentMonth}`;
+    const monthTransactions = allMonthsTransactions[monthKey] || [];
+    const regularTransactions = transactions.filter(t => {
+      const tDate = new Date(t.date);
+      return tDate.getMonth() === currentMonth && 
+             tDate.getFullYear() === currentYear;
+    });
 
-      const allTransactions = [...regularTransactions, ...monthTransactions]
-        .filter(t => t.type === 'expense' && !t.skipped);
+    const allTransactions = [...regularTransactions, ...monthTransactions]
+      .filter(t => t.type === 'expense' && !t.skipped);
 
-      console.log('Filtered transactions:', allTransactions);
+    const categoryTotals = allTransactions.reduce((acc, transaction) => {
+      const category = transaction.category || 'Other';
+      if (!acc[category]) {
+        acc[category] = 0;
+      }
+      acc[category] += parseFloat(transaction.amount);
+      return acc;
+    }, {});
 
-      const categoryTotals = allTransactions.reduce((acc, transaction) => {
-        if (!acc[transaction.category]) {
-          acc[transaction.category] = 0;
-        }
-        acc[transaction.category] += parseFloat(transaction.amount);
-        return acc;
-      }, {});
+    if (Object.keys(categoryTotals).length > 0) {
+      const categories = Object.keys(categoryTotals);
+      const colors = categories.map((category, index) => generateColor(category, index));
 
-      console.log('Category totals:', categoryTotals);
-
-      if (Object.keys(categoryTotals).length > 0) {
-        const categories = Object.keys(categoryTotals);
-        const colors = categories.map((category, index) => {
-          const categoryColors = {
-            'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
-            'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
-            'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
-          };
-
-          return categoryColors[category] || generateColor(index);
-        });
-
-        console.log('Creating new chart with data:', {
-          categories,
-          data: Object.values(categoryTotals),
-          colors
-        });
-
-        const newChart = new Chart(ctx, {
-          type: 'pie',
-          data: {
-            labels: categories,
-            datasets: [{
-              data: Object.values(categoryTotals),
-              backgroundColor: colors.map(c => c.bg),
-              borderColor: colors.map(c => c.border),
-              borderWidth: 1
-            }]
+      const newChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: categories,
+          datasets: [{
+            data: Object.values(categoryTotals),
+            backgroundColor: colors.map(c => c.bg),
+            borderColor: colors.map(c => c.border),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 300
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              datalabels: {
-                formatter: (value) => `$${value.toFixed(2)}`,
-                color: '#fff',
+          plugins: {
+            datalabels: {
+              color: '#ffffff',
+              font: {
+                weight: 'bold',
+                size: window.innerWidth < 768 ? 9 : 14,
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial'
+              },
+              formatter: (value, context) => {
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                if (percentage < 3) return '';
+                return `$${value.toFixed(0)}`;
+              },
+              anchor: 'center',
+              align: 'center',
+              offset: 0
+            },
+            legend: {
+              position: window.innerWidth < 768 ? 'bottom' : 'right',
+              align: 'start',
+              maxWidth: window.innerWidth < 768 ? '100%' : 200,
+              maxHeight: window.innerWidth < 768 ? 150 : undefined,
+              labels: {
+                color: '#ffffff',
+                boxWidth: window.innerWidth < 768 ? 12 : 20,
+                padding: window.innerWidth < 768 ? 8 : 15,
                 font: {
-                  weight: 'bold',
-                  size: 14
+                  size: window.innerWidth < 768 ? 10 : 13,
+                  family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial'
+                },
+                generateLabels: (chart) => {
+                  const data = chart.data;
+                  if (data.labels.length && data.datasets.length) {
+                    return data.labels.map((label, i) => {
+                      const value = data.datasets[0].data[i];
+                      const total = data.datasets[0].data.reduce((acc, val) => acc + val, 0);
+                      const percentage = ((value / total) * 100).toFixed(1);
+                      const text = window.innerWidth < 768 
+                        ? `${label}: $${value.toFixed(0)}`
+                        : `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                      return {
+                        text,
+                        fillStyle: data.datasets[0].backgroundColor[i],
+                        strokeStyle: data.datasets[0].borderColor[i],
+                        lineWidth: 1,
+                        hidden: false,
+                        color: '#ffffff'
+                      };
+                    });
+                  }
+                  return [];
                 }
               },
-              legend: {
-                position: 'right',
-                labels: {
-                  color: isDarkMode ? '#ffffff' : '#666666',
-                  font: {
-                    size: 12
-                  },
-                  generateLabels: (chart) => {
-                    const data = chart.data;
-                    if (data.labels.length && data.datasets.length) {
-                      return data.labels.map((label, i) => {
-                        const value = data.datasets[0].data[i];
-                        return {
-                          text: `${label}: $${value.toFixed(2)}`,
-                          fillStyle: data.datasets[0].backgroundColor[i],
-                          strokeStyle: data.datasets[0].borderColor[i],
-                          lineWidth: 1,
-                          hidden: false,
-                          index: i
-                        };
-                      });
-                    }
-                    return [];
-                  }
-                }
-              }
+              overflow: 'scroll'
             }
           }
-        });
+        },
+        plugins: [ChartDataLabels]
+      });
 
-        console.log('Chart created successfully');
-        setChart(newChart);
-      } else {
-        console.log('No data available for chart');
-      }
-    } catch (error) {
-      console.error('Error creating chart:', error);
+      setChart(newChart);
     }
   }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);
 
@@ -1159,7 +1165,7 @@ function App() {
           {/* Budget & Expenses Card */}
           <div className="row">
             <div className="col-12">
-              <div className="card">
+              <div className="card budget-expenses">
                 <div className="card-header bg-danger text-white">
                   <div className="d-flex justify-content-between align-items-center">
                     <h3 className="mb-0">Budget & Expenses</h3>

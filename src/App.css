@@ -116,11 +116,10 @@
   position: relative;
   width: 100%;
   height: 400px;
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  margin: 0 auto;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 canvas#expenseChart {
@@ -1236,64 +1235,100 @@ h3 {
 }
 
 /* Tab Navigation Styles */
-.main-nav {
-  border-bottom: none;
-  margin-bottom: 1rem;
+.app-navigation {
   display: flex;
-  justify-content: flex-start;
-  padding-left: 5px;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
-.main-nav .nav-item {
-  margin-left: 0.5rem;
-}
-
-.main-nav .nav-link {
-  color: var(--text-primary);
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  padding: 0.8rem 1.5rem;
-  transition: all 0.2s ease;
-  border-radius: 8px 8px 0 0;
-  margin-bottom: -1px;
-}
-
-.main-nav .nav-link:hover {
-  background: var(--bg-secondary);
-}
-
-.main-nav .nav-link.active {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  color: white;
+.main-nav {
+  display: flex;
+  justify-content: center;
   border: none;
 }
 
-/* Dark mode adjustments for tabs */
-.dark-mode .main-nav .nav-link {
-  background: var(--bg-secondary);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+.main-nav .nav-item {
+  flex: 1;
+  max-width: 200px;
 }
 
-.dark-mode .main-nav .nav-link:hover {
-  background: var(--card-bg);
+.main-nav .nav-link {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin: 0 0.25rem;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  position: relative;
+  overflow: hidden;
+}
+
+.main-nav .nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(to right, var(--accent-blue), #2980b9);
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+
+.main-nav .nav-link.active {
+  background: var(--bg-primary);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-nav .nav-link.active::before {
+  transform: translateY(0);
+}
+
+.main-nav .nav-link:hover:not(.active) {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+/* Dark mode adjustments */
+.dark-mode .main-nav .nav-link {
+  background: var(--bg-secondary);
 }
 
 .dark-mode .main-nav .nav-link.active {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  color: white;
-  border-color: var(--gradient-start);
+  background: var(--bg-primary);
+  border-color: var(--accent-blue);
 }
 
-/* Mobile adjustments */
+/* Mobile optimizations */
 @media (max-width: 768px) {
-  .main-nav {
-    justify-content: center;
-    padding-right: 0;
+  .main-nav .nav-link {
+    padding: 0.6rem;
+    font-size: 0.9rem;
   }
-  
-  .app-navigation {
-    padding: 0 0.5rem;
+
+  .main-nav .nav-link i {
+    font-size: 1.1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .main-nav .nav-item {
+    flex: 1;
+    display: flex;
+  }
+
+  .main-nav .nav-link {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.3rem;
   }
 }
 
@@ -1954,20 +1989,21 @@ h3 {
 }
 
 .chart-section {
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 2rem;
+  color: #ffffff;
 }
 
 .chart-container {
   position: relative;
   width: 100%;
-  height: 400px; /* Increased height */
-  background: var(--bg-primary);
+  height: 400px;
+  background: var(--bg-secondary);
   border-radius: 8px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .chart-section h3 {
@@ -1979,26 +2015,46 @@ h3 {
 
 /* Dark mode adjustments */
 .dark-mode .chart-section {
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
 }
 
 .dark-mode .chart-container {
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
 }
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .chart-container {
-    height: 300px;
+    height: 600px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart-section {
+    padding: 1rem;
+  }
+
+  canvas#expenseChart {
+    flex: 1;
+    max-height: 60%;
+    margin-bottom: 0.5rem;
+  }
+
+  .chart-container .chartjs-legend-container {
+    max-height: 40%;
+    overflow-y: auto;
+    padding: 0.5rem;
+    scrollbar-width: thin;
   }
 }
 
-/* Update mobile optimization styles for expense and income cards */
+/* Update mobile optimization styles */
 @media (max-width: 768px) {
   /* Make forms appear as buttons initially */
   .row:first-of-type {
     display: flex;
-    flex-direction: row !important; /* Override previous column setting */
+    flex-direction: row !important;
     gap: 0.5rem;
     padding: 0 0.5rem;
   }
@@ -2026,7 +2082,7 @@ h3 {
     margin-bottom: 0.5rem;
     background: transparent;
     box-shadow: none;
-    position: relative; /* For absolute positioning of expanded form */
+    position: relative;
   }
 
   .card-header {
@@ -2150,5 +2206,46 @@ h3 {
 
   .collapse.show {
     opacity: 1;
+  }
+
+  /* Form-specific collapse styles */
+  .col-md-8.mb-4 .collapse.show,
+  .col-md-4.mb-4 .collapse.show {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Budget & Expenses collapse styles */
+  .budget-expenses .collapse.show {
+    position: static;
+    transform: none;
+    max-height: none;
+    opacity: 1;
+  }
+
+  /* Form-specific animations */
+  .col-md-8.mb-4 .collapse,
+  .col-md-4.mb-4 .collapse {
+    transform: translateY(0);
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+
+  .col-md-8.mb-4 .collapse.show,
+  .col-md-4.mb-4 .collapse.show {
+    opacity: 1;
+  }
+
+  /* Budget & Expenses animations */
+  .budget-expenses .collapse {
+    transform: none;
+    transition: all 0.3s ease;
   }
 }
