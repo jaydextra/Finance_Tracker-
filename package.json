@@ -2,6 +2,7 @@
   "name": "finance-tracker",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://jaydextra.github.io/Finance_Tracker-/",
   "dependencies": {
     "@babel/runtime": "^7.26.0",
     "@testing-library/jest-dom": "^5.17.0",
@@ -19,6 +20,8 @@
     "web-vitals": "^3.5.2"
   },
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -43,12 +46,6 @@
     ]
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0",
-    "@babel/preset-react": "^7.26.3",
-    "gh-pages": "^6.3.0",
-    "html-webpack-plugin": "^5.6.3",
-    "webpack": "^5.97.1",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.0"
+    "gh-pages": "^6.1.1"
   }
 }
