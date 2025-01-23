@@ -1,3 +1,18 @@
+# Finance Tracker
+
+A web application for tracking personal finances, including income, expenses, and credit card management.
+
+## Features
+
+- Track monthly income and expenses
+- Categorize expenses
+- Visual expense breakdown with charts
+- Credit card tracking
+- Dark/Light mode toggle
+- Responsive design for mobile and desktop
+
+Visit the live site: [Finance Tracker](https://jaydextra.github.io/Finance_Tracker-/)
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
