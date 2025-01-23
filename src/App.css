@@ -1830,3 +1830,92 @@ h3 {
     padding: 0.75rem;
   }
 }
+
+.budget-summary {
+  padding: 1rem;
+  background-color: var(--background-secondary);
+  border-radius: 0.5rem;
+}
+
+.budget-stat {
+  padding: 1rem;
+  background-color: var(--background-primary);
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.budget-stat .label {
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.budget-stat .value {
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.budget-stat i {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* Filter Controls Styling */
+.filters-section {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.filters-section .form-control,
+.filters-section .form-select {
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.filters-section .form-control:focus,
+.filters-section .form-select:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.filters-section .form-control::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Dark mode adjustments */
+.dark-mode .filters-section {
+  background: var(--bg-primary);
+}
+
+.dark-mode .filters-section .form-control,
+.dark-mode .filters-section .form-select {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .filters-section .row {
+    gap: 0.5rem;
+  }
+  
+  .filters-section .col-md-3 {
+    width: 100%;
+  }
+}

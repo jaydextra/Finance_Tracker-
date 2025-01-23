@@ -61,6 +61,12 @@ function App() {
   const [creditCards, setCreditCards] = useState([]);
   const [customCategory, setCustomCategory] = useState('');
   const [isExpenseListOpen, setIsExpenseListOpen] = useState(true);
+  const [sortConfig, setSortConfig] = useState({ key: 'dueDate', direction: 'asc' });
+  const [filterConfig, setFilterConfig] = useState({
+    category: 'all',
+    status: 'all',
+    search: ''
+  });
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -99,16 +105,36 @@ function App() {
     };
   }, [chart]);
 
+  // Add this helper function at the top of your App component
+  const generateColor = (index) => {
+    // Predefined colors for known categories
+    const categoryColors = {
+      'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
+      'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
+      'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+    };
+
+    // Color palette for additional categories
+    const colorPalette = [
+      { bg: 'rgba(75, 192, 192, 0.8)', border: 'rgba(75, 192, 192, 1)' },
+      { bg: 'rgba(153, 102, 255, 0.8)', border: 'rgba(153, 102, 255, 1)' },
+      { bg: 'rgba(255, 159, 64, 0.8)', border: 'rgba(255, 159, 64, 1)' },
+      { bg: 'rgba(231, 233, 237, 0.8)', border: 'rgba(231, 233, 237, 1)' },
+      { bg: 'rgba(102, 204, 153, 0.8)', border: 'rgba(102, 204, 153, 1)' },
+      { bg: 'rgba(255, 99, 255, 0.8)', border: 'rgba(255, 99, 255, 1)' }
+    ];
+
+    return colorPalette[index % colorPalette.length];
+  };
+
   // Update the chart useEffect
   useEffect(() => {
     const ctx = document.getElementById('expenseChart');
     if (!ctx) return;
 
-    // Create a flag to track if the component is mounted
     let isMounted = true;
 
     try {
-      // Get transactions for current month from both sources
       const monthKey = `${currentYear}-${currentMonth}`;
       const monthTransactions = allMonthsTransactions[monthKey] || [];
       const regularTransactions = transactions.filter(t => {
@@ -117,11 +143,9 @@ function App() {
                tDate.getFullYear() === currentYear;
       });
 
-      // Combine transactions and filter out skipped ones
       const allTransactions = [...regularTransactions, ...monthTransactions]
         .filter(t => t.type === 'expense' && !t.skipped);
 
-      // Calculate totals by category
       const categoryTotals = allTransactions.reduce((acc, transaction) => {
         if (!acc[transaction.category]) {
           acc[transaction.category] = 0;
@@ -130,26 +154,27 @@ function App() {
         return acc;
       }, {});
 
-      // Only proceed if we have data and component is mounted
       if (Object.keys(categoryTotals).length > 0 && isMounted) {
+        const categories = Object.keys(categoryTotals);
+        const colors = categories.map((category, index) => {
+          // Use predefined colors for known categories, generate for others
+          const categoryColors = {
+            'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
+            'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
+            'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+          };
+
+          return categoryColors[category] || generateColor(index);
+        });
+
         const chartConfig = {
           type: 'pie',
           data: {
-            labels: Object.keys(categoryTotals),
+            labels: categories,
             datasets: [{
               data: Object.values(categoryTotals),
-              backgroundColor: Object.keys(categoryTotals).map(category => 
-                category === 'Bills' ? 'rgba(255, 99, 132, 0.8)' :
-                category === 'Savings' ? 'rgba(54, 162, 235, 0.8)' :
-                category === 'Personal' ? 'rgba(255, 206, 86, 0.8)' :
-                'rgba(255, 206, 86, 0.8)'
-              ),
-              borderColor: Object.keys(categoryTotals).map(category => 
-                category === 'Bills' ? 'rgba(255, 99, 132, 1)' :
-                category === 'Savings' ? 'rgba(54, 162, 235, 1)' :
-                category === 'Personal' ? 'rgba(255, 206, 86, 1)' :
-                'rgba(255, 206, 86, 1)'
-              ),
+              backgroundColor: colors.map(c => c.bg),
+              borderColor: colors.map(c => c.border),
               borderWidth: 1
             }]
           },
@@ -213,10 +238,9 @@ function App() {
           try {
             chart.data = chartConfig.data;
             chart.options = chartConfig.options;
-            chart.update('none'); // Update without animation
+            chart.update('none');
           } catch (error) {
             console.error('Error updating chart:', error);
-            // If update fails, destroy and recreate
             chart.destroy();
             if (isMounted) {
               const newChart = new Chart(ctx, chartConfig);
@@ -232,7 +256,6 @@ function App() {
       console.error('Error in chart effect:', error);
     }
 
-    // Cleanup function
     return () => {
       isMounted = false;
       if (chart) {
@@ -739,6 +762,41 @@ function App() {
     };
   };
 
+  // Add this sorting function
+  const sortTransactions = (transactions) => {
+    return [...transactions].sort((a, b) => {
+      if (sortConfig.key === 'amount') {
+        return sortConfig.direction === 'asc' 
+          ? a.amount - b.amount 
+          : b.amount - a.amount;
+      }
+      if (sortConfig.key === 'dueDate') {
+        return sortConfig.direction === 'asc'
+          ? new Date(a.dueDate) - new Date(b.dueDate)
+          : new Date(b.dueDate) - new Date(a.dueDate);
+      }
+      if (sortConfig.key === 'description') {
+        return sortConfig.direction === 'asc'
+          ? a.description.localeCompare(b.description)
+          : b.description.localeCompare(a.description);
+      }
+      return 0;
+    });
+  };
+
+  // Rename this function to applyFilters
+  const applyFilters = (transactions) => {
+    return transactions.filter(transaction => {
+      const matchesCategory = filterConfig.category === 'all' || transaction.category === filterConfig.category;
+      const matchesStatus = filterConfig.status === 'all' 
+        || (filterConfig.status === 'paid' && transaction.paid)
+        || (filterConfig.status === 'unpaid' && !transaction.paid);
+      const matchesSearch = transaction.description.toLowerCase().includes(filterConfig.search.toLowerCase());
+      
+      return matchesCategory && matchesStatus && matchesSearch;
+    });
+  };
+
   return (
     <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
       <header className="finance-header">
@@ -842,35 +900,6 @@ function App() {
       {/* Conditional Rendering based on active tab */}
       {activeTab === 'budget' ? (
         <>
-          {/* Updated Summary Card */}
-          <div className="row mb-4">
-            {/* Summary Stats - Simplified */}
-            <div className="mobile-summary">
-              <div className="stat-card">
-                <div className="stat-row income">
-                  <div className="stat-label">Income</div>
-                  <div className="stat-value">${calculateTotals().income.toFixed(2)}</div>
-                </div>
-                <div className="stat-row expenses">
-                  <div className="stat-label">Expenses</div>
-                  <div className="stat-value">${calculateTotals().expenses.toFixed(2)}</div>
-                </div>
-                <div className="stat-row balance">
-                  <div className="stat-label">Balance</div>
-                  <div className="stat-value">${(calculateTotals().income - calculateTotals().expenses).toFixed(2)}</div>
-                </div>
-              </div>
-              
-              {/* Single Chart - Most Important View */}
-              <div className="chart-section">
-                <h3>Expense Breakdown</h3>
-                <div className="chart-container">
-                  <canvas id="expenseChart"></canvas>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Forms Section - Side by Side */}
           <div className="row">
             {/* Expense Form */}
@@ -1021,7 +1050,7 @@ function App() {
                             </tr>
                           </thead>
                           <tbody>
-                            {filterTransactions('income').map(transaction => (
+                            {sortTransactions(applyFilters(filterTransactions('income'))).map(transaction => (
                               <tr key={transaction.id}>
                                 <td>
                                   {editingId === transaction.id ? (
@@ -1107,13 +1136,13 @@ function App() {
             </div>
           </div>
 
-          {/* Full Width Expenses List */}
+          {/* Updated Full Width Expenses List with Budget Info */}
           <div className="row">
             <div className="col-12">
               <div className="card">
                 <div className="card-header bg-danger text-white">
                   <div className="d-flex justify-content-between align-items-center">
-                    <h3 className="mb-0">Expenses List</h3>
+                    <h3 className="mb-0">Budget & Expenses</h3>
                     <button 
                       className="btn btn-link text-white" 
                       onClick={() => setIsExpenseListOpen(!isExpenseListOpen)}
@@ -1123,52 +1152,139 @@ function App() {
                   </div>
                 </div>
                 
-                {/* Payment Summary Section */}
+                {/* Updated Budget and Payment Summary Section */}
                 <div className="card-body pb-0">
-                  <div className="payment-summary mb-3">
-                    {(() => {
-                      const summary = calculatePaymentSummary();
-                      return (
-                        <>
-                          <div className="progress mb-2">
-                            <div 
-                              className="progress-bar bg-success" 
-                              role="progressbar" 
-                              style={{width: `${summary.progress}%`}}
-                              aria-valuenow={summary.progress} 
-                              aria-valuemin="0" 
-                              aria-valuemax="100"
-                            >
-                              {summary.progress}%
+                  <div className="budget-summary mb-3">
+                    <div className="row">
+                      <div className="col-md-4">
+                        <div className="budget-stat">
+                          <i className="fas fa-wallet me-2"></i>
+                          <span className="label">Monthly Income:</span>
+                          <span className="value text-success">${calculateTotals().income.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="budget-stat">
+                          <i className="fas fa-shopping-cart me-2"></i>
+                          <span className="label">Total Expenses:</span>
+                          <span className="value text-danger">${calculateTotals().expenses.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="col-md-4">
+                        <div className="budget-stat">
+                          <i className="fas fa-piggy-bank me-2"></i>
+                          <span className="label">Remaining:</span>
+                          <span className="value ${(calculateTotals().income - calculateTotals().expenses) >= 0 ? 'text-success' : 'text-danger'}">
+                            ${(calculateTotals().income - calculateTotals().expenses).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="payment-summary mt-3">
+                      {(() => {
+                        const summary = calculatePaymentSummary();
+                        return (
+                          <>
+                            <div className="progress mb-2">
+                              <div 
+                                className="progress-bar bg-success" 
+                                role="progressbar" 
+                                style={{width: `${summary.progress}%`}}
+                                aria-valuenow={summary.progress} 
+                                aria-valuemin="0" 
+                                aria-valuemax="100"
+                              >
+                                {summary.progress}%
+                              </div>
                             </div>
-                          </div>
-                          <div className="summary-grid">
-                            <div className="summary-item">
-                              <span className="label">Total Expenses:</span>
-                              <span className="value">${summary.total}</span>
+                            <div className="summary-grid">
+                              <div className="summary-item">
+                                <span className="label">Paid:</span>
+                                <span className="value text-success">${summary.paid}</span>
+                              </div>
+                              <div className="summary-item">
+                                <span className="label">Remaining:</span>
+                                <span className="value text-danger">${summary.remaining}</span>
+                              </div>
                             </div>
-                            <div className="summary-item">
-                              <span className="label">Paid:</span>
-                              <span className="value text-success">${summary.paid}</span>
-                            </div>
-                            <div className="summary-item">
-                              <span className="label">Remaining:</span>
-                              <span className="value text-danger">${summary.remaining}</span>
-                            </div>
-                          </div>
-                        </>
-                      );
-                    })()}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
 
                 <Collapse in={isExpenseListOpen}>
                   <div>
                     <div className="card-body">
+                      {/* Add Filter Controls */}
+                      <div className="filters-section mb-4">
+                        <div className="row g-3">
+                          <div className="col-md-3">
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Search expenses..."
+                              value={filterConfig.search}
+                              onChange={(e) => setFilterConfig(prev => ({
+                                ...prev,
+                                search: e.target.value
+                              }))}
+                            />
+                          </div>
+                          <div className="col-md-3">
+                            <select
+                              className="form-select"
+                              value={filterConfig.category}
+                              onChange={(e) => setFilterConfig(prev => ({
+                                ...prev,
+                                category: e.target.value
+                              }))}
+                            >
+                              <option value="all">All Categories</option>
+                              <option value="Bills">Bills</option>
+                              <option value="Savings">Savings</option>
+                              <option value="Personal">Personal</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div className="col-md-3">
+                            <select
+                              className="form-select"
+                              value={filterConfig.status}
+                              onChange={(e) => setFilterConfig(prev => ({
+                                ...prev,
+                                status: e.target.value
+                              }))}
+                            >
+                              <option value="all">All Status</option>
+                              <option value="paid">Paid</option>
+                              <option value="unpaid">Unpaid</option>
+                            </select>
+                          </div>
+                          <div className="col-md-3">
+                            <select
+                              className="form-select"
+                              value={`${sortConfig.key}-${sortConfig.direction}`}
+                              onChange={(e) => {
+                                const [key, direction] = e.target.value.split('-');
+                                setSortConfig({ key, direction });
+                              }}
+                            >
+                              <option value="dueDate-asc">Date (Earliest First)</option>
+                              <option value="dueDate-desc">Date (Latest First)</option>
+                              <option value="amount-asc">Amount (Low to High)</option>
+                              <option value="amount-desc">Amount (High to Low)</option>
+                              <option value="description-asc">Name (A to Z)</option>
+                              <option value="description-desc">Name (Z to A)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="table-responsive">
-                        {/* Existing expense list code */}
                         <div className="expense-list">
-                          {filterTransactions('expense').map(transaction => (
+                          {sortTransactions(applyFilters(filterTransactions('expense'))).map(transaction => (
                             <div key={transaction.id} className={`expense-item ${transaction.paid ? 'paid' : ''}`}>
                               <div className="expense-main">
                                 <div className="expense-checkbox">
