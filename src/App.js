@@ -58,21 +58,36 @@ function App() {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [allMonthsTransactions, setAllMonthsTransactions] = useState({});
   const [activeTab, setActiveTab] = useState('budget');
+  const [creditCards, setCreditCards] = useState([]);
+  const [customCategory, setCustomCategory] = useState('');
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   // Load transactions from localStorage on component mount
   useEffect(() => {
-    const savedTransactions = localStorage.getItem('transactions');
-    if (savedTransactions) {
-      setTransactions(JSON.parse(savedTransactions));
-    }
-  }, []);
+    // Load all data on mount
+    const loadData = () => {
+      try {
+        const savedTransactions = localStorage.getItem('transactions');
+        const savedMonthsTransactions = localStorage.getItem('allMonthsTransactions');
+        const savedCreditCards = localStorage.getItem('creditCards');
 
-  // Save transactions to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-  }, [transactions]);
+        if (savedTransactions) {
+          setTransactions(JSON.parse(savedTransactions));
+        }
+        if (savedMonthsTransactions) {
+          setAllMonthsTransactions(JSON.parse(savedMonthsTransactions));
+        }
+        if (savedCreditCards) {
+          setCreditCards(JSON.parse(savedCreditCards));
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, []); // Only run on mount
 
   // Clean up chart on component unmount
   useEffect(() => {
@@ -83,109 +98,157 @@ function App() {
     };
   }, [chart]);
 
-  // Add this new useEffect to handle localStorage for allMonthsTransactions
-  useEffect(() => {
-    const savedMonthsTransactions = localStorage.getItem('allMonthsTransactions');
-    if (savedMonthsTransactions) {
-      setAllMonthsTransactions(JSON.parse(savedMonthsTransactions));
-    }
-  }, []);
-
-  // Add this useEffect to save allMonthsTransactions when it changes
-  useEffect(() => {
-    localStorage.setItem('allMonthsTransactions', JSON.stringify(allMonthsTransactions));
-  }, [allMonthsTransactions]);
-
-  // Update the chart update useEffect
+  // Update the chart useEffect
   useEffect(() => {
     const ctx = document.getElementById('expenseChart');
     if (!ctx) return;
 
-    // Destroy existing chart
-    if (chart) {
-      chart.destroy();
-    }
+    // Create a flag to track if the component is mounted
+    let isMounted = true;
 
-    // Get all transactions for the current month
-    const monthKey = `${currentYear}-${currentMonth}`;
-    const monthTransactions = allMonthsTransactions[monthKey] || [];
-    
-    // Combine regular and monthly transactions
-    const allTransactions = [
-      ...transactions.filter(t => {
+    try {
+      // Get transactions for current month from both sources
+      const monthKey = `${currentYear}-${currentMonth}`;
+      const monthTransactions = allMonthsTransactions[monthKey] || [];
+      const regularTransactions = transactions.filter(t => {
         const tDate = new Date(t.date);
         return tDate.getMonth() === currentMonth && 
                tDate.getFullYear() === currentYear;
-      }),
-      ...monthTransactions
-    ];
+      });
 
-    const categoryTotals = allTransactions.reduce((acc, transaction) => {
-      if (transaction.type === 'expense' && !transaction.skipped) {
-        acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-      }
-      return acc;
-    }, {});
+      // Combine transactions and filter out skipped ones
+      const allTransactions = [...regularTransactions, ...monthTransactions]
+        .filter(t => t.type === 'expense' && !t.skipped);
 
-    // Only create new chart if there's data to display
-    if (Object.keys(categoryTotals).length > 0) {
-      const newChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: Object.keys(categoryTotals),
-          datasets: [{
-            data: Object.values(categoryTotals),
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.8)',
-              'rgba(54, 162, 235, 0.8)',
-              'rgba(255, 206, 86, 0.8)',
-              'rgba(75, 192, 192, 0.8)'
-            ],
-            borderColor: [
-              'rgba(255, 99, 132, 1)',
-              'rgba(54, 162, 235, 1)',
-              'rgba(255, 206, 86, 1)',
-              'rgba(75, 192, 192, 1)'
-            ],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            datalabels: {
-              formatter: (value) => `$${value.toFixed(2)}`,
-              color: 'white',
-              font: { 
-                weight: 'bold',
-                size: 12
-              }
+      // Calculate totals by category
+      const categoryTotals = allTransactions.reduce((acc, transaction) => {
+        if (!acc[transaction.category]) {
+          acc[transaction.category] = 0;
+        }
+        acc[transaction.category] += parseFloat(transaction.amount);
+        return acc;
+      }, {});
+
+      // Only proceed if we have data and component is mounted
+      if (Object.keys(categoryTotals).length > 0 && isMounted) {
+        const chartConfig = {
+          type: 'pie',
+          data: {
+            labels: Object.keys(categoryTotals),
+            datasets: [{
+              data: Object.values(categoryTotals),
+              backgroundColor: Object.keys(categoryTotals).map(category => 
+                category === 'Bills' ? 'rgba(255, 99, 132, 0.8)' :
+                category === 'Savings' ? 'rgba(54, 162, 235, 0.8)' :
+                category === 'Personal' ? 'rgba(255, 206, 86, 0.8)' :
+                'rgba(255, 206, 86, 0.8)'
+              ),
+              borderColor: Object.keys(categoryTotals).map(category => 
+                category === 'Bills' ? 'rgba(255, 99, 132, 1)' :
+                category === 'Savings' ? 'rgba(54, 162, 235, 1)' :
+                category === 'Personal' ? 'rgba(255, 206, 86, 1)' :
+                'rgba(255, 206, 86, 1)'
+              ),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              duration: 500 // Reduce animation duration
             },
-            legend: {
-              position: 'right',
-              labels: {
-                color: isDarkMode ? '#ffffff' : '#666666',
+            plugins: {
+              datalabels: {
+                formatter: (value) => `$${value.toFixed(2)}`,
+                color: '#fff',
                 font: {
-                  size: 12
+                  weight: 'bold',
+                  size: 14
+                },
+                textAlign: 'center'
+              },
+              legend: {
+                position: 'right',
+                labels: {
+                  color: isDarkMode ? '#ffffff' : '#666666',
+                  font: {
+                    size: 12
+                  },
+                  generateLabels: (chart) => {
+                    const data = chart.data;
+                    if (data.labels.length && data.datasets.length) {
+                      return data.labels.map((label, i) => {
+                        const value = data.datasets[0].data[i];
+                        return {
+                          text: `${label}: $${value.toFixed(2)}`,
+                          fillStyle: data.datasets[0].backgroundColor[i],
+                          strokeStyle: data.datasets[0].borderColor[i],
+                          lineWidth: 1,
+                          hidden: false,
+                          index: i
+                        };
+                      });
+                    }
+                    return [];
+                  }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const value = context.raw;
+                    return ` $${value.toFixed(2)}`;
+                  }
                 }
               }
             }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
+          },
+          plugins: [ChartDataLabels]
+        };
 
-      setChart(newChart);
+        // Update existing chart if it exists, create new one if it doesn't
+        if (chart && isMounted) {
+          try {
+            chart.data = chartConfig.data;
+            chart.options = chartConfig.options;
+            chart.update('none'); // Update without animation
+          } catch (error) {
+            console.error('Error updating chart:', error);
+            // If update fails, destroy and recreate
+            chart.destroy();
+            if (isMounted) {
+              const newChart = new Chart(ctx, chartConfig);
+              setChart(newChart);
+            }
+          }
+        } else if (isMounted) {
+          const newChart = new Chart(ctx, chartConfig);
+          setChart(newChart);
+        }
+      }
+    } catch (error) {
+      console.error('Error in chart effect:', error);
     }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (chart) {
+        try {
+          chart.destroy();
+        } catch (error) {
+          console.error('Error destroying chart:', error);
+        }
+      }
+    };
   }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
     e.preventDefault();
     if (!incomeDescription || !incomeAmount) {
-      alert("Please fill in all required fields.");
-      return;
+      return; // Just return if validation fails
     }
 
     const newIncome = {
@@ -194,8 +257,8 @@ function App() {
       amount: parseFloat(incomeAmount),
       type: 'income',
       date: new Date().toISOString(),
-      frequency: 'Monthly', // Add default frequency for income
-      dueDate: new Date().toISOString().split('T')[0] // Add current date as due date
+      frequency: 'Monthly',
+      dueDate: new Date().toISOString().split('T')[0]
     };
 
     // Use addTransaction instead of directly updating transactions
@@ -204,22 +267,24 @@ function App() {
     // Clear form
     setIncomeDescription('');
     setIncomeAmount('');
-    alert('Income added successfully!');
+    setIsIncomeOpen(false); // Automatically close the form after submission
   };
 
   const handleExpenseSubmit = (e) => {
     e.preventDefault();
     if (!expenseDescription || !expenseAmount || !dueDate || !category) {
-      alert("Please fill in all required fields.");
       return;
     }
+
+    // Use custom category if "Other" is selected
+    const finalCategory = category === 'Other' ? customCategory : category;
 
     const newExpense = {
       id: Date.now(),
       description: expenseDescription,
       amount: parseFloat(expenseAmount),
       type: 'expense',
-      category,
+      category: finalCategory,
       dueDate,
       frequency,
       paid: false,
@@ -227,41 +292,66 @@ function App() {
       date: new Date().toISOString()
     };
 
-    // Use addTransaction instead of directly updating transactions
     addTransaction(newExpense, 'expense');
     
     // Clear form
     setExpenseDescription('');
     setExpenseAmount('');
-    alert('Expense added successfully!');
+    setCategory('Bills'); // Reset to default category
+    setCustomCategory(''); // Clear custom category
+    setIsExpenseOpen(false);
   };
 
   const togglePaid = (id) => {
-    // Check if the transaction is in allMonthsTransactions
     const monthKey = `${currentYear}-${currentMonth}`;
     const monthTransactions = allMonthsTransactions[monthKey] || [];
     const monthTransaction = monthTransactions.find(t => t.id === id);
 
-    if (monthTransaction) {
-      // Update in allMonthsTransactions
-      setAllMonthsTransactions(prev => ({
-        ...prev,
-        [monthKey]: prev[monthKey].map(t =>
-          t.id === id ? { ...t, paid: !t.paid, skipped: false } : t
-        )
-      }));
-    } else {
-      // Update in regular transactions
-      setTransactions(transactions.map(t =>
-        t.id === id ? { ...t, paid: !t.paid, skipped: false } : t
-      ));
+    try {
+      if (monthTransaction) {
+        setAllMonthsTransactions(prev => {
+          const updated = {
+            ...prev,
+            [monthKey]: prev[monthKey].map(t =>
+              t.id === id ? { ...t, paid: !t.paid, skipped: false } : t
+            )
+          };
+          localStorage.setItem('allMonthsTransactions', JSON.stringify(updated));
+          return updated;
+        });
+      } else {
+        setTransactions(prev => {
+          const updated = prev.map(t =>
+            t.id === id ? { ...t, paid: !t.paid, skipped: false } : t
+          );
+          localStorage.setItem('transactions', JSON.stringify(updated));
+          return updated;
+        });
+      }
+
+      // If chart exists, update it safely
+      if (chart) {
+        requestAnimationFrame(() => {
+          try {
+            chart.update('none');
+          } catch (error) {
+            console.error('Error updating chart in togglePaid:', error);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error in togglePaid:', error);
     }
   };
 
   const toggleSkipped = (id) => {
-    setTransactions(transactions.map(t => 
-      t.id === id ? { ...t, skipped: !t.skipped, paid: false } : t
-    ));
+    setTransactions(prev => {
+      const updated = prev.map(t => 
+        t.id === id ? { ...t, skipped: !t.skipped, paid: false } : t
+      );
+      localStorage.setItem('transactions', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const deleteTransaction = (transactionId, fromMonth) => {
@@ -269,19 +359,16 @@ function App() {
       const transaction = transactions.find(t => t.id === transactionId);
       
       if (!transaction) {
-        // Check in allMonthsTransactions if not found in transactions
         const monthKey = `${currentYear}-${fromMonth}`;
         const monthTransactions = allMonthsTransactions[monthKey] || [];
         const monthTransaction = monthTransactions.find(t => t.id === transactionId);
         
         if (monthTransaction?.originalTransactionId) {
-          // If it's a recurring transaction, ask if they want to delete all future occurrences
           const deleteAll = window.confirm(
             'Delete all future occurrences of this recurring transaction?'
           );
           
           if (deleteAll) {
-            // Delete from current month forward
             const updatedMonthsTransactions = { ...allMonthsTransactions };
             Object.keys(updatedMonthsTransactions).forEach(monthKey => {
               const [year, month] = monthKey.split('-').map(Number);
@@ -291,23 +378,27 @@ function App() {
               }
             });
             setAllMonthsTransactions(updatedMonthsTransactions);
+            localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
           } else {
-            // Delete only this occurrence
-            setAllMonthsTransactions(prev => ({
-              ...prev,
-              [monthKey]: prev[monthKey].filter(t => t.id !== transactionId)
-            }));
+            const updatedMonthsTransactions = {
+              ...allMonthsTransactions,
+              [monthKey]: allMonthsTransactions[monthKey].filter(t => t.id !== transactionId)
+            };
+            setAllMonthsTransactions(updatedMonthsTransactions);
+            localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
           }
         } else {
-          // Handle one-time transaction deletion
-          setAllMonthsTransactions(prev => ({
-            ...prev,
-            [monthKey]: prev[monthKey].filter(t => t.id !== transactionId)
-          }));
+          const updatedMonthsTransactions = {
+            ...allMonthsTransactions,
+            [monthKey]: allMonthsTransactions[monthKey].filter(t => t.id !== transactionId)
+          };
+          setAllMonthsTransactions(updatedMonthsTransactions);
+          localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
         }
       } else {
-        // Handle deletion from regular transactions array
-        setTransactions(transactions.filter(t => t.id !== transactionId));
+        const updatedTransactions = transactions.filter(t => t.id !== transactionId);
+        setTransactions(updatedTransactions);
+        localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
       }
     }
   };
@@ -523,19 +614,28 @@ function App() {
     return dates;
   };
 
+  // Add these wrapper functions
+  const updateTransactions = (newTransactions) => {
+    setTransactions(newTransactions);
+    localStorage.setItem('transactions', JSON.stringify(newTransactions));
+  };
+
+  const updateMonthlyTransactions = (newMonthlyTransactions) => {
+    setAllMonthsTransactions(newMonthlyTransactions);
+    localStorage.setItem('allMonthsTransactions', JSON.stringify(newMonthlyTransactions));
+  };
+
   // Update the addTransaction function
   const addTransaction = (transaction, type) => {
     const endOfYear = new Date(currentYear, 11, 31);
     const isRecurring = transaction.frequency !== 'One-time';
     const startDate = new Date(transaction.dueDate);
-    
-    console.log('Adding transaction:', {
-      transaction,
-      type,
-      isRecurring,
-      startDate,
-      endOfYear
-    });
+
+    // Ensure paid property is set for expenses
+    const transactionWithPaid = {
+      ...transaction,
+      paid: type === 'expense' ? false : undefined
+    };
 
     if (isRecurring) {
       const recurringDates = generateRecurringDates(
@@ -544,9 +644,6 @@ function App() {
         endOfYear
       );
 
-      console.log('Generated recurring dates:', recurringDates.length);
-
-      // Group transactions by month
       const transactionsByMonth = {};
       recurringDates.forEach(date => {
         const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
@@ -555,39 +652,49 @@ function App() {
         }
 
         const recurringTransaction = {
-          ...transaction,
-          id: Date.now() + Math.random(), // Ensure unique IDs
+          ...transactionWithPaid,
+          id: Date.now() + Math.random(),
           dueDate: date.toISOString().split('T')[0],
           originalTransactionId: transaction.id,
-          paid: false // Reset paid status for each occurrence
+          paid: type === 'expense' ? false : undefined
         };
 
         transactionsByMonth[monthKey].push(recurringTransaction);
       });
 
-      console.log('Transactions grouped by month:', transactionsByMonth);
-
       // Update allMonthsTransactions
-      setAllMonthsTransactions(prev => {
-        const updated = { ...prev };
-        Object.entries(transactionsByMonth).forEach(([monthKey, transactions]) => {
-          if (!updated[monthKey]) {
-            updated[monthKey] = [];
-          }
-          updated[monthKey] = [...updated[monthKey], ...transactions];
-        });
-        return updated;
+      const updatedMonthsTransactions = { ...allMonthsTransactions };
+      Object.entries(transactionsByMonth).forEach(([monthKey, transactions]) => {
+        if (!updatedMonthsTransactions[monthKey]) {
+          updatedMonthsTransactions[monthKey] = [];
+        }
+        updatedMonthsTransactions[monthKey] = [
+          ...updatedMonthsTransactions[monthKey],
+          ...transactions
+        ];
       });
 
+      setAllMonthsTransactions(updatedMonthsTransactions);
+      localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
+
     } else {
-      // Handle one-time transactions
-      const transactionDate = new Date(transaction.dueDate);
-      const monthKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`;
-      
-      setAllMonthsTransactions(prev => ({
-        ...prev,
-        [monthKey]: [...(prev[monthKey] || []), { ...transaction, paid: false }]
-      }));
+      if (type === 'income') {
+        updateTransactions([...transactions, transactionWithPaid]);
+      } else {
+        // Handle one-time expenses
+        const transactionDate = new Date(transaction.dueDate);
+        const monthKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`;
+        
+        const updatedMonthly = {
+          ...allMonthsTransactions,
+          [monthKey]: [
+            ...(allMonthsTransactions[monthKey] || []),
+            { ...transactionWithPaid, paid: false }
+          ]
+        };
+
+        updateMonthlyTransactions(updatedMonthly);
+      }
     }
   };
 
@@ -608,6 +715,12 @@ function App() {
     const balance = paidIncome - expenses;
 
     return { income, paidIncome, expenses, balance };
+  };
+
+  // Add this function near the top of App component
+  const updateCreditCards = (newCards) => {
+    setCreditCards(newCards);
+    localStorage.setItem('creditCards', JSON.stringify(newCards));
   };
 
   return (
@@ -794,8 +907,19 @@ function App() {
                           <option value="Bills">Bills</option>
                           <option value="Savings">Savings</option>
                           <option value="Personal">Personal</option>
-                          <option value="Other">Other</option>
+                          <option value="Other">Other...</option>
                         </select>
+                        {/* Show custom category input when "Other" is selected */}
+                        {category === 'Other' && (
+                          <input
+                            type="text"
+                            value={customCategory}
+                            onChange={(e) => setCustomCategory(e.target.value)}
+                            placeholder="Enter custom category"
+                            className="form-control mt-2"
+                            required
+                          />
+                        )}
                         <input
                           type="date"
                           value={dueDate}
@@ -872,12 +996,11 @@ function App() {
                         </button>
                       </form>
                       <div className="table-responsive">
-                        <table className="table table-hover">
+                        <table className="table">
                           <thead>
                             <tr>
                               <th>Description</th>
                               <th>Amount</th>
-                              <th>Paid</th>
                               <th>Actions</th>
                             </tr>
                           </thead>
@@ -914,17 +1037,6 @@ function App() {
                                   ) : (
                                     <span className="text-success">${transaction.amount.toFixed(2)}</span>
                                   )}
-                                </td>
-                                <td>
-                                  <div className="expense-checkbox">
-                                    <input
-                                      type="checkbox"
-                                      checked={transaction.paid}
-                                      onChange={() => togglePaid(transaction.id)}
-                                      id={`paid-income-${transaction.id}`}
-                                    />
-                                    <label className="checkmark" htmlFor={`paid-income-${transaction.id}`}></label>
-                                  </div>
                                 </td>
                                 <td>
                                   {editingId === transaction.id ? (
@@ -996,7 +1108,7 @@ function App() {
                             <div className="expense-checkbox">
                               <input
                                 type="checkbox"
-                                checked={transaction.paid}
+                                checked={transaction.paid || false}
                                 onChange={() => togglePaid(transaction.id)}
                                 id={`paid-${transaction.id}`}
                               />
@@ -1072,7 +1184,9 @@ function App() {
                                     <span className="expense-amount">${transaction.amount.toFixed(2)}</span>
                                   </div>
                                   <div className="expense-secondary">
-                                    <span className="expense-tag">{transaction.category}</span>
+                                    {transaction.type === 'expense' && (
+                                      <span className="expense-tag">{transaction.category}</span>
+                                    )}
                                     <span className="expense-date">{getDayWithSuffix(transaction.dueDate)}</span>
                                     <span className="expense-frequency">{transaction.frequency}</span>
                                   </div>
@@ -1119,7 +1233,10 @@ function App() {
           />
         </>
       ) : (
-        <CreditCardTracker />
+        <CreditCardTracker 
+          creditCards={creditCards} 
+          setCreditCards={updateCreditCards}
+        />
       )}
     </div>
   );

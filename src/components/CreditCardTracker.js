@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Collapse } from 'react-bootstrap';
 import CreditCardGraph from './CreditCardGraph';
 
-const CreditCardTracker = () => {
-  const [cards, setCards] = useState([]);
+const CreditCardTracker = ({ creditCards, setCreditCards }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [newCard, setNewCard] = useState({
     name: '',
@@ -12,49 +11,33 @@ const CreditCardTracker = () => {
     minPayment: ''
   });
   const [monthlyBudget, setMonthlyBudget] = useState(() => {
-    // Load saved budget from localStorage
     const savedBudget = localStorage.getItem('creditCardBudget');
-    return savedBudget ? savedBudget : '';
+    return savedBudget || ''; // Return empty string if no saved budget
   });
   const [payoffStrategy, setPayoffStrategy] = useState('snowball');
   const [showGraph, setShowGraph] = useState(true);
   const [editingCard, setEditingCard] = useState(null);
 
-  // Save budget to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('creditCardBudget', monthlyBudget);
-  }, [monthlyBudget]);
-
-  // Load cards from localStorage
-  useEffect(() => {
-    const savedCards = localStorage.getItem('creditCards');
-    if (savedCards) {
-      setCards(JSON.parse(savedCards));
-    }
-  }, []);
-
-  // Save cards to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('creditCards', JSON.stringify(cards));
-  }, [cards]);
-
   const handleAddCard = (e) => {
     e.preventDefault();
+    if (!newCard.name || !newCard.balance || !newCard.minPayment) {
+      return;
+    }
+
     const card = {
       id: Date.now(),
       ...newCard,
       balance: parseFloat(newCard.balance),
-      interestRate: parseFloat(newCard.interestRate),
+      interestRate: newCard.interestRate ? parseFloat(newCard.interestRate) : 0,
       minPayment: parseFloat(newCard.minPayment)
     };
-    setCards([...cards, card]);
+    
+    setCreditCards([...creditCards, card]);
     setNewCard({ name: '', balance: '', interestRate: '', minPayment: '' });
   };
 
   const handleDeleteCard = (id) => {
-    if (window.confirm('Are you sure you want to delete this card?')) {
-      setCards(cards.filter(card => card.id !== id));
-    }
+    setCreditCards(creditCards.filter(card => card.id !== id));
   };
 
   const handleEditCard = (card) => {
@@ -67,7 +50,7 @@ const CreditCardTracker = () => {
   };
 
   const handleSaveEdit = () => {
-    setCards(cards.map(card => 
+    setCreditCards(creditCards.map(card => 
       card.id === editingCard.id ? {
         ...editingCard,
         balance: parseFloat(editingCard.balance),
@@ -79,17 +62,19 @@ const CreditCardTracker = () => {
   };
 
   const calculatePayoffPlan = () => {
-    if (!monthlyBudget || cards.length === 0) return null;
+    if (!monthlyBudget || creditCards.length === 0) return null;
 
     // Sort cards by balance (snowball method)
-    const sortedCards = [...cards].sort((a, b) => a.balance - b.balance);
+    const sortedCards = [...creditCards].sort((a, b) => a.balance - b.balance);
     let remainingBudget = parseFloat(monthlyBudget);
     
     return sortedCards.map(card => {
       const payment = Math.min(remainingBudget, card.balance);
       remainingBudget -= card.minPayment;
       const monthsToPayoff = Math.ceil(card.balance / payment);
-      const totalInterest = (card.balance * (card.interestRate / 100) * monthsToPayoff) / 12;
+      const totalInterest = card.interestRate 
+        ? (card.balance * (card.interestRate / 100) * monthsToPayoff) / 12 
+        : 0;
 
       return {
         ...card,
@@ -102,11 +87,18 @@ const CreditCardTracker = () => {
 
   const payoffPlan = calculatePayoffPlan();
 
+  // Only handle budget localStorage
+  const handleSaveBudget = () => {
+    if (monthlyBudget) {
+      localStorage.setItem('creditCardBudget', monthlyBudget);
+    }
+  };
+
   return (
     <Card className="mb-4">
       <Card.Header className="bg-primary text-white">
         <div className="d-flex justify-content-between align-items-center">
-          <h3 className="mb-0">Credit Card Debt Tracker</h3>
+          <h3 className="mb-0">Debt Tracker</h3>
         </div>
       </Card.Header>
       <Card.Body>
@@ -117,7 +109,7 @@ const CreditCardTracker = () => {
               <input
                 type="text"
                 className="form-control"
-                placeholder="Card Name"
+                placeholder="Account Name (Card/Loan)"
                 value={newCard.name}
                 onChange={(e) => setNewCard({...newCard, name: e.target.value})}
                 required
@@ -127,7 +119,7 @@ const CreditCardTracker = () => {
               <input
                 type="number"
                 className="form-control"
-                placeholder="Balance"
+                placeholder="Current Balance"
                 value={newCard.balance}
                 onChange={(e) => setNewCard({...newCard, balance: e.target.value})}
                 required
@@ -138,10 +130,9 @@ const CreditCardTracker = () => {
               <input
                 type="number"
                 className="form-control"
-                placeholder="Interest %"
+                placeholder="Interest % (optional)"
                 value={newCard.interestRate}
                 onChange={(e) => setNewCard({...newCard, interestRate: e.target.value})}
-                required
                 step="0.01"
               />
             </div>
@@ -149,7 +140,7 @@ const CreditCardTracker = () => {
               <input
                 type="number"
                 className="form-control"
-                placeholder="Min Payment"
+                placeholder="Min Monthly Payment"
                 value={newCard.minPayment}
                 onChange={(e) => setNewCard({...newCard, minPayment: e.target.value})}
                 required
@@ -175,7 +166,10 @@ const CreditCardTracker = () => {
               className="form-control"
               placeholder="Enter your monthly budget"
               value={monthlyBudget}
-              onChange={(e) => setMonthlyBudget(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setMonthlyBudget(newValue);
+              }}
               step="0.01"
             />
             <button 
@@ -183,7 +177,6 @@ const CreditCardTracker = () => {
               type="button"
               onClick={() => {
                 localStorage.setItem('creditCardBudget', monthlyBudget);
-                alert('Budget saved successfully!');
               }}
             >
               Save Budget
@@ -192,12 +185,12 @@ const CreditCardTracker = () => {
         </div>
 
         {/* Cards List */}
-        {cards.length > 0 && (
+        {creditCards.length > 0 && (
           <div className="table-responsive mb-4">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Card</th>
+                  <th>Account</th>
                   <th>Balance</th>
                   <th>Interest Rate</th>
                   <th>Min Payment</th>
@@ -205,7 +198,7 @@ const CreditCardTracker = () => {
                 </tr>
               </thead>
               <tbody>
-                {cards.map(card => (
+                {creditCards.map(card => (
                   <tr key={card.id}>
                     {editingCard?.id === card.id ? (
                       <>
@@ -303,7 +296,7 @@ const CreditCardTracker = () => {
         {/* Payoff Plan */}
         {payoffPlan && (
           <div className="payoff-plan">
-            <h4>Snowball Method Payoff Plan</h4>
+            <h4>Debt Payoff Plan</h4>
             <div className="table-responsive">
               <table className="table">
                 <thead>
@@ -329,7 +322,7 @@ const CreditCardTracker = () => {
           </div>
         )}
 
-        {cards.length > 0 && (
+        {creditCards.length > 0 && (
           <div className="payoff-analysis">
             <div className="strategy-controls">
               <h4 className="mb-0">Payoff Analysis</h4>
@@ -344,7 +337,7 @@ const CreditCardTracker = () => {
             </div>
             
             <CreditCardGraph 
-              cards={cards}
+              cards={creditCards}
               monthlyBudget={monthlyBudget}
               strategy={payoffStrategy}
             />
