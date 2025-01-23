@@ -29,7 +29,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement
+  ArcElement,
+  ChartDataLabels
 );
 
 // Create theme context
@@ -60,13 +61,14 @@ function App() {
   const [activeTab, setActiveTab] = useState('budget');
   const [creditCards, setCreditCards] = useState([]);
   const [customCategory, setCustomCategory] = useState('');
-  const [isExpenseListOpen, setIsExpenseListOpen] = useState(true);
+  const [isExpenseListOpen, setIsExpenseListOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'dueDate', direction: 'asc' });
   const [filterConfig, setFilterConfig] = useState({
     category: 'all',
     status: 'all',
     search: ''
   });
+  const [activeForm, setActiveForm] = useState(null);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -101,6 +103,7 @@ function App() {
     return () => {
       if (chart) {
         chart.destroy();
+        setChart(null);
       }
     };
   }, [chart]);
@@ -127,12 +130,21 @@ function App() {
     return colorPalette[index % colorPalette.length];
   };
 
-  // Update the chart useEffect
+  // Update the chart useEffect with debug logs
   useEffect(() => {
     const ctx = document.getElementById('expenseChart');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('Canvas context not found');
+      return;
+    }
 
-    let isMounted = true;
+    console.log('Starting chart creation...');
+
+    // Destroy existing chart if it exists
+    if (chart) {
+      chart.destroy();
+      setChart(null);
+    }
 
     try {
       const monthKey = `${currentYear}-${currentMonth}`;
@@ -146,6 +158,8 @@ function App() {
       const allTransactions = [...regularTransactions, ...monthTransactions]
         .filter(t => t.type === 'expense' && !t.skipped);
 
+      console.log('Filtered transactions:', allTransactions);
+
       const categoryTotals = allTransactions.reduce((acc, transaction) => {
         if (!acc[transaction.category]) {
           acc[transaction.category] = 0;
@@ -154,10 +168,11 @@ function App() {
         return acc;
       }, {});
 
-      if (Object.keys(categoryTotals).length > 0 && isMounted) {
+      console.log('Category totals:', categoryTotals);
+
+      if (Object.keys(categoryTotals).length > 0) {
         const categories = Object.keys(categoryTotals);
         const colors = categories.map((category, index) => {
-          // Use predefined colors for known categories, generate for others
           const categoryColors = {
             'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
             'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
@@ -167,7 +182,13 @@ function App() {
           return categoryColors[category] || generateColor(index);
         });
 
-        const chartConfig = {
+        console.log('Creating new chart with data:', {
+          categories,
+          data: Object.values(categoryTotals),
+          colors
+        });
+
+        const newChart = new Chart(ctx, {
           type: 'pie',
           data: {
             labels: categories,
@@ -181,9 +202,6 @@ function App() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-              duration: 500 // Reduce animation duration
-            },
             plugins: {
               datalabels: {
                 formatter: (value) => `$${value.toFixed(2)}`,
@@ -191,8 +209,7 @@ function App() {
                 font: {
                   weight: 'bold',
                   size: 14
-                },
-                textAlign: 'center'
+                }
               },
               legend: {
                 position: 'right',
@@ -219,54 +236,20 @@ function App() {
                     return [];
                   }
                 }
-              },
-              tooltip: {
-                callbacks: {
-                  label: (context) => {
-                    const value = context.raw;
-                    return ` $${value.toFixed(2)}`;
-                  }
-                }
               }
             }
-          },
-          plugins: [ChartDataLabels]
-        };
-
-        // Update existing chart if it exists, create new one if it doesn't
-        if (chart && isMounted) {
-          try {
-            chart.data = chartConfig.data;
-            chart.options = chartConfig.options;
-            chart.update('none');
-          } catch (error) {
-            console.error('Error updating chart:', error);
-            chart.destroy();
-            if (isMounted) {
-              const newChart = new Chart(ctx, chartConfig);
-              setChart(newChart);
-            }
           }
-        } else if (isMounted) {
-          const newChart = new Chart(ctx, chartConfig);
-          setChart(newChart);
-        }
+        });
+
+        console.log('Chart created successfully');
+        setChart(newChart);
+      } else {
+        console.log('No data available for chart');
       }
     } catch (error) {
-      console.error('Error in chart effect:', error);
+      console.error('Error creating chart:', error);
     }
-
-    return () => {
-      isMounted = false;
-      if (chart) {
-        try {
-          chart.destroy();
-        } catch (error) {
-          console.error('Error destroying chart:', error);
-        }
-      }
-    };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart]);
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
@@ -797,6 +780,24 @@ function App() {
     });
   };
 
+  // Add this function to handle form toggling
+  const toggleForm = (formName) => {
+    if (activeForm === formName) {
+      setActiveForm(null);
+      setIsIncomeOpen(false);
+      setIsExpenseOpen(false);
+    } else {
+      setActiveForm(formName);
+      if (formName === 'income') {
+        setIsIncomeOpen(true);
+        setIsExpenseOpen(false);
+      } else {
+        setIsExpenseOpen(true);
+        setIsIncomeOpen(false);
+      }
+    }
+  };
+
   return (
     <div className={`App ${isDarkMode ? 'dark-mode' : ''}`}>
       <header className="finance-header">
@@ -907,7 +908,7 @@ function App() {
               <Card>
                 <Card.Header className="bg-danger text-white">
                   <Button
-                    onClick={() => setIsExpenseOpen(!isExpenseOpen)}
+                    onClick={() => toggleForm('expense')}
                     aria-controls="expenseForm"
                     aria-expanded={isExpenseOpen}
                     variant="link"
@@ -921,6 +922,11 @@ function App() {
                     </div>
                   </Button>
                 </Card.Header>
+                {/* Add backdrop for mobile */}
+                <div 
+                  className={`mobile-form-backdrop ${isExpenseOpen ? 'show' : ''}`}
+                  onClick={() => toggleForm('expense')}
+                />
                 <Collapse in={isExpenseOpen}>
                   <div id="expenseForm">
                     <Card.Body>
@@ -998,7 +1004,7 @@ function App() {
               <Card>
                 <Card.Header className="bg-success text-white">
                   <Button
-                    onClick={() => setIsIncomeOpen(!isIncomeOpen)}
+                    onClick={() => toggleForm('income')}
                     aria-controls="incomeSection"
                     aria-expanded={isIncomeOpen}
                     variant="link"
@@ -1010,11 +1016,13 @@ function App() {
                         <i className={`fas fa-caret-${isIncomeOpen ? 'down' : 'right'} ms-2 fa-lg`}></i>
                       </div>
                     </div>
-                    <div className="current-income-display mt-2">
-                      Total Monthly Income: ${calculateTotals().income.toFixed(2)}
-                    </div>
                   </Button>
                 </Card.Header>
+                {/* Add backdrop for mobile */}
+                <div 
+                  className={`mobile-form-backdrop ${isIncomeOpen ? 'show' : ''}`}
+                  onClick={() => toggleForm('income')}
+                />
                 <Collapse in={isIncomeOpen}>
                   <div id="incomeSection">
                     <Card.Body>
@@ -1136,7 +1144,19 @@ function App() {
             </div>
           </div>
 
-          {/* Updated Full Width Expenses List with Budget Info */}
+          {/* Chart Section - Moved above Budget & Expenses */}
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className="chart-section">
+                <h3>Expense Breakdown</h3>
+                <div className="chart-container">
+                  <canvas id="expenseChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Budget & Expenses Card */}
           <div className="row">
             <div className="col-12">
               <div className="card">
@@ -1152,8 +1172,8 @@ function App() {
                   </div>
                 </div>
                 
-                {/* Updated Budget and Payment Summary Section */}
-                <div className="card-body pb-0">
+                <div className="card-body">
+                  {/* Budget Summary Section */}
                   <div className="budget-summary mb-3">
                     <div className="row">
                       <div className="col-md-4">
@@ -1212,11 +1232,10 @@ function App() {
                       })()}
                     </div>
                   </div>
-                </div>
 
-                <Collapse in={isExpenseListOpen}>
-                  <div>
-                    <div className="card-body">
+                  {/* Expense List Section */}
+                  <Collapse in={isExpenseListOpen}>
+                    <div>
                       {/* Add Filter Controls */}
                       <div className="filters-section mb-4">
                         <div className="row g-3">
@@ -1401,8 +1420,8 @@ function App() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Collapse>
+                  </Collapse>
+                </div>
               </div>
             </div>
           </div>
