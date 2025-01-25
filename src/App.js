@@ -39,6 +39,28 @@ const ThemeContext = createContext();
 // Add this before the App component.
 export const useTheme = () => useContext(ThemeContext);
 
+// Add this helper function at the top of your App component, before the useEffect hooks
+const generateColor = (index) => {
+  // Predefined colors for known categories
+  const categoryColors = {
+    'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
+    'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
+    'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+  };
+
+  // Color palette for additional categories
+  const colorPalette = [
+    { bg: 'rgba(75, 192, 192, 0.8)', border: 'rgba(75, 192, 192, 1)' },
+    { bg: 'rgba(153, 102, 255, 0.8)', border: 'rgba(153, 102, 255, 1)' },
+    { bg: 'rgba(255, 159, 64, 0.8)', border: 'rgba(255, 159, 64, 1)' },
+    { bg: 'rgba(231, 233, 237, 0.8)', border: 'rgba(231, 233, 237, 1)' },
+    { bg: 'rgba(102, 204, 153, 0.8)', border: 'rgba(102, 204, 153, 1)' },
+    { bg: 'rgba(255, 99, 255, 0.8)', border: 'rgba(255, 99, 255, 1)' }
+  ];
+
+  return colorPalette[index % colorPalette.length];
+};
+
 function App() {
   const [transactions, setTransactions] = useState([]);
   const [incomeDescription, setIncomeDescription] = useState('');
@@ -99,162 +121,124 @@ function App() {
     loadData();
   }, []); // Only run on mount
 
-  // Clean up chart on component unmount
+  // Update the chart useEffect
   useEffect(() => {
-    return () => {
+    // Function to destroy existing chart
+    const destroyExistingChart = () => {
       if (chart) {
         chart.destroy();
         setChart(null);
       }
     };
-  }, [chart]);
 
-  // Update the generateColor function to use cached colors
-  const generateColor = (category, index) => {
-    if (categoryColors[category]) {
-      return categoryColors[category];
-    }
+    // Function to create new chart
+    const createNewChart = () => {
+      const ctx = document.getElementById('expenseChart');
+      if (!ctx) {
+        console.log('Canvas context not found');
+        return;
+      }
 
-    // Predefined colors for known categories
-    const defaultColors = {
-      'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
-      'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
-      'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+      try {
+        const monthKey = `${currentYear}-${currentMonth}`;
+        const monthTransactions = allMonthsTransactions[monthKey] || [];
+        const regularTransactions = transactions.filter(t => {
+          const tDate = new Date(t.date);
+          return tDate.getMonth() === currentMonth && 
+                 tDate.getFullYear() === currentYear;
+        });
+
+        const allTransactions = [...regularTransactions, ...monthTransactions]
+          .filter(t => t.type === 'expense' && !t.skipped);
+
+        const categoryTotals = allTransactions.reduce((acc, transaction) => {
+          if (!acc[transaction.category]) {
+            acc[transaction.category] = 0;
+          }
+          acc[transaction.category] += parseFloat(transaction.amount) || 0;
+          return acc;
+        }, {});
+
+        if (Object.keys(categoryTotals).length > 0) {
+          const categories = Object.keys(categoryTotals);
+          const colors = categories.map((category, index) => {
+            const categoryColors = {
+              'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
+              'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
+              'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+            };
+
+            return categoryColors[category] || generateColor(index);
+          });
+
+          const newChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: categories,
+              datasets: [{
+                data: Object.values(categoryTotals),
+                backgroundColor: colors.map(c => c.bg),
+                borderColor: colors.map(c => c.border),
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                datalabels: {
+                  formatter: (value) => `$${value.toFixed(2)}`,
+                  color: '#fff',
+                  font: {
+                    weight: 'bold',
+                    size: 14
+                  }
+                },
+                legend: {
+                  position: 'right',
+                  labels: {
+                    color: isDarkMode ? '#ffffff' : '#666666',
+                    font: {
+                      size: 12
+                    },
+                    generateLabels: (chart) => {
+                      const data = chart.data;
+                      if (data.labels.length && data.datasets.length) {
+                        return data.labels.map((label, i) => {
+                          const value = data.datasets[0].data[i];
+                          return {
+                            text: `${label}: $${value.toFixed(2)}`,
+                            fillStyle: data.datasets[0].backgroundColor[i],
+                            strokeStyle: data.datasets[0].borderColor[i],
+                            lineWidth: 1,
+                            hidden: false,
+                            index: i
+                          };
+                        });
+                      }
+                      return [];
+                    }
+                  }
+                }
+              }
+            }
+          });
+
+          setChart(newChart);
+        }
+      } catch (error) {
+        console.error('Error creating chart:', error);
+      }
     };
 
-    if (defaultColors[category]) {
-      setCategoryColors(prev => ({ ...prev, [category]: defaultColors[category] }));
-      return defaultColors[category];
-    }
+    // Main execution
+    destroyExistingChart();
+    createNewChart();
 
-    // Fixed color palette for additional categories
-    const colorPalette = [
-      { bg: 'rgba(75, 192, 192, 0.8)', border: 'rgba(75, 192, 192, 1)' },
-      { bg: 'rgba(153, 102, 255, 0.8)', border: 'rgba(153, 102, 255, 1)' },
-      { bg: 'rgba(255, 159, 64, 0.8)', border: 'rgba(255, 159, 64, 1)' },
-      { bg: 'rgba(231, 233, 237, 0.8)', border: 'rgba(231, 233, 237, 1)' },
-      { bg: 'rgba(102, 204, 153, 0.8)', border: 'rgba(102, 204, 153, 1)' }
-    ];
-
-    const newColor = colorPalette[index % colorPalette.length];
-    setCategoryColors(prev => ({ ...prev, [category]: newColor }));
-    return newColor;
-  };
-
-  // Update the chart useEffect
-  useEffect(() => {
-    const ctx = document.getElementById('expenseChart');
-    if (!ctx) return;
-
-    // Destroy existing chart if it exists
-    if (chart) {
-      chart.destroy();
-    }
-
-    const monthKey = `${currentYear}-${currentMonth}`;
-    const monthTransactions = allMonthsTransactions[monthKey] || [];
-    const regularTransactions = transactions.filter(t => {
-      const tDate = new Date(t.date);
-      return tDate.getMonth() === currentMonth && 
-             tDate.getFullYear() === currentYear;
-    });
-
-    const allTransactions = [...regularTransactions, ...monthTransactions]
-      .filter(t => t.type === 'expense' && !t.skipped);
-
-    const categoryTotals = allTransactions.reduce((acc, transaction) => {
-      const category = transaction.category || 'Other';
-      if (!acc[category]) {
-        acc[category] = 0;
-      }
-      acc[category] += parseFloat(transaction.amount);
-      return acc;
-    }, {});
-
-    if (Object.keys(categoryTotals).length > 0) {
-      const categories = Object.keys(categoryTotals);
-      const colors = categories.map((category, index) => generateColor(category, index));
-
-      const newChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-          labels: categories,
-          datasets: [{
-            data: Object.values(categoryTotals),
-            backgroundColor: colors.map(c => c.bg),
-            borderColor: colors.map(c => c.border),
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: {
-            duration: 300
-          },
-          plugins: {
-            datalabels: {
-              color: '#ffffff',
-              font: {
-                weight: 'bold',
-                size: window.innerWidth < 768 ? 9 : 14,
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial'
-              },
-              formatter: (value, context) => {
-                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-                const percentage = ((value / total) * 100).toFixed(1);
-                if (percentage < 3) return '';
-                return `$${value.toFixed(0)}`;
-              },
-              anchor: 'center',
-              align: 'center',
-              offset: 0
-            },
-            legend: {
-              position: window.innerWidth < 768 ? 'bottom' : 'right',
-              align: 'start',
-              maxWidth: window.innerWidth < 768 ? '100%' : 200,
-              maxHeight: window.innerWidth < 768 ? 150 : undefined,
-              labels: {
-                color: '#ffffff',
-                boxWidth: window.innerWidth < 768 ? 12 : 20,
-                padding: window.innerWidth < 768 ? 8 : 15,
-                font: {
-                  size: window.innerWidth < 768 ? 10 : 13,
-                  family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial'
-                },
-                generateLabels: (chart) => {
-                  const data = chart.data;
-                  if (data.labels.length && data.datasets.length) {
-                    return data.labels.map((label, i) => {
-                      const value = data.datasets[0].data[i];
-                      const total = data.datasets[0].data.reduce((acc, val) => acc + val, 0);
-                      const percentage = ((value / total) * 100).toFixed(1);
-                      const text = window.innerWidth < 768 
-                        ? `${label}: $${value.toFixed(0)}`
-                        : `${label}: $${value.toFixed(2)} (${percentage}%)`;
-                      return {
-                        text,
-                        fillStyle: data.datasets[0].backgroundColor[i],
-                        strokeStyle: data.datasets[0].borderColor[i],
-                        lineWidth: 1,
-                        hidden: false,
-                        color: '#ffffff'
-                      };
-                    });
-                  }
-                  return [];
-                }
-              },
-              overflow: 'scroll'
-            }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
-
-      setChart(newChart);
-    }
+    // Cleanup function
+    return () => {
+      destroyExistingChart();
+    };
   }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);
 
   // Separate submit handlers for income and expenses
@@ -368,30 +352,48 @@ function App() {
   };
 
   const deleteTransaction = (transactionId, fromMonth) => {
-    if (window.confirm('Delete this transaction?')) {
-      const transaction = transactions.find(t => t.id === transactionId);
-      
-      if (!transaction) {
-        const monthKey = `${currentYear}-${fromMonth}`;
-        const monthTransactions = allMonthsTransactions[monthKey] || [];
-        const monthTransaction = monthTransactions.find(t => t.id === transactionId);
+    // First, blur (unfocus) any active element to dismiss the keyboard
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // Add a small delay to ensure keyboard is dismissed before showing confirm dialog
+    setTimeout(() => {
+      if (window.confirm('Delete this transaction?')) {
+        const transaction = transactions.find(t => t.id === transactionId);
         
-        if (monthTransaction?.originalTransactionId) {
-          const deleteAll = window.confirm(
-            'Delete all future occurrences of this recurring transaction?'
-          );
+        if (!transaction) {
+          const monthKey = `${currentYear}-${fromMonth}`;
+          const monthTransactions = allMonthsTransactions[monthKey] || [];
+          const monthTransaction = monthTransactions.find(t => t.id === transactionId);
           
-          if (deleteAll) {
-            const updatedMonthsTransactions = { ...allMonthsTransactions };
-            Object.keys(updatedMonthsTransactions).forEach(monthKey => {
-              const [year, month] = monthKey.split('-').map(Number);
-              if (year > currentYear || (year === currentYear && month >= fromMonth)) {
-                updatedMonthsTransactions[monthKey] = updatedMonthsTransactions[monthKey]
-                  .filter(t => t.originalTransactionId !== monthTransaction.originalTransactionId);
+          if (monthTransaction?.originalTransactionId) {
+            // Add another small delay for the second confirmation if needed
+            setTimeout(() => {
+              const deleteAll = window.confirm(
+                'Delete all future occurrences of this recurring transaction?'
+              );
+              
+              if (deleteAll) {
+                const updatedMonthsTransactions = { ...allMonthsTransactions };
+                Object.keys(updatedMonthsTransactions).forEach(monthKey => {
+                  const [year, month] = monthKey.split('-').map(Number);
+                  if (year > currentYear || (year === currentYear && month >= fromMonth)) {
+                    updatedMonthsTransactions[monthKey] = updatedMonthsTransactions[monthKey]
+                      .filter(t => t.originalTransactionId !== monthTransaction.originalTransactionId);
+                  }
+                });
+                setAllMonthsTransactions(updatedMonthsTransactions);
+                localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
+              } else {
+                const updatedMonthsTransactions = {
+                  ...allMonthsTransactions,
+                  [monthKey]: allMonthsTransactions[monthKey].filter(t => t.id !== transactionId)
+                };
+                setAllMonthsTransactions(updatedMonthsTransactions);
+                localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
               }
-            });
-            setAllMonthsTransactions(updatedMonthsTransactions);
-            localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
+            }, 100);
           } else {
             const updatedMonthsTransactions = {
               ...allMonthsTransactions,
@@ -401,19 +403,12 @@ function App() {
             localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
           }
         } else {
-          const updatedMonthsTransactions = {
-            ...allMonthsTransactions,
-            [monthKey]: allMonthsTransactions[monthKey].filter(t => t.id !== transactionId)
-          };
-          setAllMonthsTransactions(updatedMonthsTransactions);
-          localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
+          const updatedTransactions = transactions.filter(t => t.id !== transactionId);
+          setTransactions(updatedTransactions);
+          localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
         }
-      } else {
-        const updatedTransactions = transactions.filter(t => t.id !== transactionId);
-        setTransactions(updatedTransactions);
-        localStorage.setItem('transactions', JSON.stringify(updatedTransactions));
       }
-    }
+    }, 100);
   };
 
   // Update the filterTransactions function to properly combine both sources
@@ -442,11 +437,10 @@ function App() {
   const calculateTotals = () => {
     const monthKey = `${currentYear}-${currentMonth}`;
     const monthTransactions = allMonthsTransactions[monthKey] || [];
-    
     const regularTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date);
-      return transactionDate.getMonth() === currentMonth &&
-             transactionDate.getFullYear() === currentYear;
+      const tDate = new Date(t.date);
+      return tDate.getMonth() === currentMonth && 
+             tDate.getFullYear() === currentYear;
     });
 
     const allTransactions = [...regularTransactions, ...monthTransactions];
@@ -454,69 +448,86 @@ function App() {
     return {
       income: allTransactions
         .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0),
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
       expenses: allTransactions
         .filter(t => t.type === 'expense' && !t.skipped)
-        .reduce((sum, t) => sum + t.amount, 0),
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0),
       paid: allTransactions
         .filter(t => t.paid)
-        .reduce((sum, t) => sum + t.amount, 0)
+        .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0)
     };
   };
 
   // Update the saveEdit function
   const saveEdit = (id) => {
+    // First, blur any active element to dismiss keyboard
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // Parse amount before saving
+    const editingValuesWithParsedAmount = {
+      ...editingValues,
+      amount: parseFloat(editingValues.amount) || 0
+    };
+
     const monthKey = `${currentYear}-${currentMonth}`;
     const isMonthTransaction = allMonthsTransactions[monthKey]?.some(t => t.id === id);
     
     if (isMonthTransaction) {
       // Handle editing recurring transactions
       if (editingValues.originalTransactionId) {
-        const editFuture = window.confirm(
-          'Do you want to apply these changes to all future occurrences?'
-        );
-        
-        if (editFuture) {
-          // Update all future occurrences
-          const updatedMonthsTransactions = { ...allMonthsTransactions };
-          Object.keys(updatedMonthsTransactions).forEach(key => {
-            const [year, month] = key.split('-').map(Number);
-            if (year > currentYear || (year === currentYear && month >= currentMonth)) {
-              updatedMonthsTransactions[key] = updatedMonthsTransactions[key].map(t =>
-                t.originalTransactionId === editingValues.originalTransactionId
-                  ? { ...t, ...editingValues }
-                  : t
-              );
-            }
-          });
-          setAllMonthsTransactions(updatedMonthsTransactions);
-        } else {
-          // Update only this occurrence
-          setAllMonthsTransactions(prev => ({
-            ...prev,
-            [monthKey]: prev[monthKey].map(t =>
-              t.id === id ? { ...t, ...editingValues } : t
-            )
-          }));
-        }
+        setTimeout(() => {
+          const editFuture = window.confirm(
+            'Do you want to apply these changes to all future occurrences?'
+          );
+          
+          if (editFuture) {
+            // Update all future occurrences with parsed amount
+            const updatedMonthsTransactions = { ...allMonthsTransactions };
+            Object.keys(updatedMonthsTransactions).forEach(key => {
+              const [year, month] = key.split('-').map(Number);
+              if (year > currentYear || (year === currentYear && month >= currentMonth)) {
+                updatedMonthsTransactions[key] = updatedMonthsTransactions[key].map(t =>
+                  t.originalTransactionId === editingValues.originalTransactionId
+                    ? { ...t, ...editingValuesWithParsedAmount }
+                    : t
+                );
+              }
+            });
+            setAllMonthsTransactions(updatedMonthsTransactions);
+            localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
+          } else {
+            // Update only this occurrence with parsed amount
+            setAllMonthsTransactions(prev => ({
+              ...prev,
+              [monthKey]: prev[monthKey].map(t =>
+                t.id === id ? { ...t, ...editingValuesWithParsedAmount } : t
+              )
+            }));
+          }
+          setEditingId(null);
+          setEditingValues({});
+        }, 100);
       } else {
-        // Update one-time transaction
+        // Update one-time transaction with parsed amount
         setAllMonthsTransactions(prev => ({
           ...prev,
           [monthKey]: prev[monthKey].map(t =>
-            t.id === id ? { ...t, ...editingValues } : t
+            t.id === id ? { ...t, ...editingValuesWithParsedAmount } : t
           )
         }));
+        setEditingId(null);
+        setEditingValues({});
       }
     } else {
-      // Handle regular transactions
+      // Handle regular transactions with parsed amount
       setTransactions(transactions.map(t => 
-        t.id === id ? { ...t, ...editingValues } : t
+        t.id === id ? { ...t, ...editingValuesWithParsedAmount } : t
       ));
+      setEditingId(null);
+      setEditingValues({});
     }
-    
-    setEditingId(null);
-    setEditingValues({});
   };
 
   // Update the startEditing function
@@ -524,7 +535,7 @@ function App() {
     setEditingId(transaction.id);
     setEditingValues({
       ...transaction,
-      amount: transaction.amount.toString()
+      amount: transaction.amount.toString() // Keep as string during editing
     });
   };
 
@@ -659,20 +670,23 @@ function App() {
 
       const transactionsByMonth = {};
       recurringDates.forEach(date => {
-        const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-        if (!transactionsByMonth[monthKey]) {
-          transactionsByMonth[monthKey] = [];
+        // Only add transactions for current and future months
+        if (date >= new Date(currentYear, currentMonth, 1)) {
+          const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+          if (!transactionsByMonth[monthKey]) {
+            transactionsByMonth[monthKey] = [];
+          }
+
+          const recurringTransaction = {
+            ...transactionWithPaid,
+            id: Date.now() + Math.random(),
+            dueDate: date.toISOString().split('T')[0],
+            originalTransactionId: transaction.id,
+            paid: type === 'expense' ? false : undefined
+          };
+
+          transactionsByMonth[monthKey].push(recurringTransaction);
         }
-
-        const recurringTransaction = {
-          ...transactionWithPaid,
-          id: Date.now() + Math.random(),
-          dueDate: date.toISOString().split('T')[0],
-          originalTransactionId: transaction.id,
-          paid: type === 'expense' ? false : undefined
-        };
-
-        transactionsByMonth[monthKey].push(recurringTransaction);
       });
 
       // Update allMonthsTransactions
@@ -691,43 +705,54 @@ function App() {
       localStorage.setItem('allMonthsTransactions', JSON.stringify(updatedMonthsTransactions));
 
     } else {
-      if (type === 'income') {
-        updateTransactions([...transactions, transactionWithPaid]);
-      } else {
-        // Handle one-time expenses
-        const transactionDate = new Date(transaction.dueDate);
-        const monthKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`;
-        
-        const updatedMonthly = {
-          ...allMonthsTransactions,
-          [monthKey]: [
-            ...(allMonthsTransactions[monthKey] || []),
-            { ...transactionWithPaid, paid: false }
-          ]
-        };
+      // Handle one-time transactions
+      const transactionDate = new Date(transaction.dueDate);
+      const monthKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`;
+      
+      const updatedMonthly = {
+        ...allMonthsTransactions,
+        [monthKey]: [
+          ...(allMonthsTransactions[monthKey] || []),
+          { ...transactionWithPaid, paid: false }
+        ]
+      };
 
-        updateMonthlyTransactions(updatedMonthly);
-      }
+      updateMonthlyTransactions(updatedMonthly);
     }
   };
 
-  // In App.js, update the summary calculation
-  const calculateSummary = (transactions) => {
-    const income = transactions
+  // Update the calculateSummary function
+  const calculateSummary = () => {
+    const monthKey = `${currentYear}-${currentMonth}`;
+    const monthTransactions = allMonthsTransactions[monthKey] || [];
+    const regularTransactions = transactions.filter(t => {
+      const tDate = new Date(t.date);
+      return tDate.getMonth() === currentMonth && 
+             tDate.getFullYear() === currentYear;
+    });
+
+    const allTransactions = [...regularTransactions, ...monthTransactions];
+
+    const income = allTransactions
       .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
-    const paidIncome = transactions
+    const paidIncome = allTransactions
       .filter(t => t.type === 'income' && t.paid)
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
-    const expenses = transactions
+    const expenses = allTransactions
       .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
     const balance = paidIncome - expenses;
 
-    return { income, paidIncome, expenses, balance };
+    return {
+      income: parseFloat(income) || 0,
+      paidIncome: parseFloat(paidIncome) || 0,
+      expenses: parseFloat(expenses) || 0,
+      balance: parseFloat(balance) || 0
+    };
   };
 
   // Add this function near the top of App component
@@ -739,15 +764,15 @@ function App() {
   // Add function to calculate payment summary
   const calculatePaymentSummary = () => {
     const expenses = filterTransactions('expense');
-    const total = expenses.reduce((sum, t) => sum + t.amount, 0);
-    const paid = expenses.reduce((sum, t) => t.paid ? sum + t.amount : sum, 0);
+    const total = expenses.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    const paid = expenses.reduce((sum, t) => t.paid ? sum + (parseFloat(t.amount) || 0) : sum, 0);
     const remaining = total - paid;
     
     return {
       total: total.toFixed(2),
       paid: paid.toFixed(2),
       remaining: remaining.toFixed(2),
-      progress: total > 0 ? (paid / total * 100).toFixed(1) : 0
+      progress: total > 0 ? (paid / total * 100).toFixed(1) : '0'
     };
   };
 
@@ -756,8 +781,8 @@ function App() {
     return [...transactions].sort((a, b) => {
       if (sortConfig.key === 'amount') {
         return sortConfig.direction === 'asc' 
-          ? a.amount - b.amount 
-          : b.amount - a.amount;
+          ? parseFloat(a.amount) - parseFloat(b.amount) 
+          : parseFloat(b.amount) - parseFloat(a.amount);
       }
       if (sortConfig.key === 'dueDate') {
         return sortConfig.direction === 'asc'
@@ -1088,13 +1113,13 @@ function App() {
                                       value={editingValues.amount || ''}
                                       onChange={(e) => setEditingValues({
                                         ...editingValues,
-                                        amount: parseFloat(e.target.value)
+                                        amount: e.target.value
                                       })}
                                       className="form-control form-control-sm"
                                       step="0.01"
                                     />
                                   ) : (
-                                    <span className="text-success">${transaction.amount.toFixed(2)}</span>
+                                    <span className="text-success">${parseFloat(transaction.amount).toFixed(2)}</span>
                                   )}
                                 </td>
                                 <td>
@@ -1340,7 +1365,7 @@ function App() {
                                         value={editingValues.amount || ''}
                                         onChange={(e) => setEditingValues({
                                           ...editingValues,
-                                          amount: parseFloat(e.target.value)
+                                          amount: e.target.value
                                         })}
                                         className="form-control form-control-sm mb-2"
                                         step="0.01"
@@ -1388,7 +1413,7 @@ function App() {
                                     <>
                                       <div className="expense-primary">
                                         <span className="expense-title">{transaction.description}</span>
-                                        <span className="expense-amount">${transaction.amount.toFixed(2)}</span>
+                                        <span className="expense-amount">${parseFloat(transaction.amount).toFixed(2)}</span>
                                       </div>
                                       <div className="expense-secondary">
                                         {transaction.type === 'expense' && (
