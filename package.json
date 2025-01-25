@@ -21,7 +21,7 @@
   },
   "scripts": {
     "predeploy": "npm run build",
-    "deploy": "git add build && git commit -m 'Deploy' && git subtree push --prefix build origin gh-pages",
+    "deploy": "git checkout -b temp-deploy && git add -f build && git commit -m 'Deploy' && git subtree split --prefix build -b gh-pages && git push -f origin gh-pages:gh-pages && git checkout main && git branch -D temp-deploy gh-pages",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
