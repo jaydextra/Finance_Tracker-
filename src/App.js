@@ -239,7 +239,7 @@ function App() {
     return () => {
       destroyExistingChart();
     };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {

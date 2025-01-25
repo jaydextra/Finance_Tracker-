@@ -21,7 +21,7 @@
   },
   "scripts": {
     "predeploy": "npm run build",
-    "deploy": "git checkout -b temp-deploy && git add -f build && git commit -m 'Deploy' && git subtree split --prefix build -b gh-pages && git push -f origin gh-pages:gh-pages && git checkout main && git branch -D temp-deploy gh-pages",
+    "deploy": "cd build && git init && git add . && git commit -m 'Deploy' && git push -f https://github.com/jaydextra/Finance_Tracker-.git main:gh-pages",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

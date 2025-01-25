@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Collapse } from 'react-bootstrap';
-import CreditCardGraph from './CreditCardGraph';
+import React from 'react';
 
 const CreditCardTracker = ({ creditCards, setCreditCards }) => {
   const [isOpen, setIsOpen] = useState(true);
