@@ -186,10 +186,10 @@ function App() {
           maintainAspectRatio: false,
           layout: {
             padding: {
-              left: 100,
-              right: 30,
+              left: 20,
+              right: 20,
               top: 20,
-              bottom: 20
+              bottom: 40
             }
           },
           plugins: {
@@ -217,15 +217,16 @@ function App() {
               textAlign: 'center',
             },
             legend: {
-              position: 'left',
-              align: 'center',
+              position: 'bottom',
+              align: 'start',
               labels: {
                 color: isDarkMode ? '#ffffff' : '#666666',
                 font: {
                   size: 11
                 },
-                padding: 8,
+                padding: 15,
                 boxWidth: 12,
+                maxWidth: 150,
                 generateLabels: (chart) => {
                   const data = chart.data;
                   if (data.labels.length && data.datasets.length) {
