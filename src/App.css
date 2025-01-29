@@ -212,7 +212,8 @@ h3 {
   }
   
   .chart-container {
-    height: 550px;
+    height: 400px;
+    min-height: 400px;
     padding: 0.5rem;
   }
   

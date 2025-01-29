@@ -186,8 +186,8 @@ function App() {
           maintainAspectRatio: false,
           layout: {
             padding: {
-              left: 30,
-              right: 100,
+              left: 100,
+              right: 30,
               top: 20,
               bottom: 20
             }
@@ -198,7 +198,10 @@ function App() {
                 const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
                 const percentage = ((value / total) * 100).toFixed(1);
                 
-                // Format numbers - only show value, no percentage
+                if (percentage < 10) {
+                  return null;
+                }
+                
                 if (value >= 1000000) {
                   return `$${(value / 1000000).toFixed(1)}M`;
                 } else if (value >= 1000) {
@@ -206,46 +209,23 @@ function App() {
                 }
                 return `$${value.toFixed(0)}`;
               },
-              color: (context) => {
-                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-                const value = context.dataset.data[context.dataIndex];
-                const percentage = (value / total) * 100;
-                return percentage < 10 ? '#666666' : '#FFFFFF';
-              },
+              color: '#FFFFFF',
               font: {
                 weight: 'bold',
                 size: 12
               },
               textAlign: 'center',
-              anchor: (context) => {
-                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-                const value = context.dataset.data[context.dataIndex];
-                const percentage = (value / total) * 100;
-                return percentage < 10 ? 'end' : 'center';
-              },
-              align: (context) => {
-                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-                const value = context.dataset.data[context.dataIndex];
-                const percentage = (value / total) * 100;
-                return percentage < 10 ? 'right' : 'center';
-              },
-              offset: (context) => {
-                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-                const value = context.dataset.data[context.dataIndex];
-                const percentage = (value / total) * 100;
-                return percentage < 10 ? 15 : 0;
-              }
             },
             legend: {
-              position: 'right',
+              position: 'left',
               align: 'center',
               labels: {
                 color: isDarkMode ? '#ffffff' : '#666666',
                 font: {
-                  size: 12
+                  size: 11
                 },
-                padding: 10,
-                boxWidth: 15,
+                padding: 8,
+                boxWidth: 12,
                 generateLabels: (chart) => {
                   const data = chart.data;
                   if (data.labels.length && data.datasets.length) {
