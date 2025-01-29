@@ -122,6 +122,8 @@
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 
 canvas#expenseChart {
@@ -132,6 +134,7 @@ canvas#expenseChart {
   position: absolute;
   top: 0;
   left: 0;
+  will-change: transform;
 }
 
 .card {
@@ -2270,4 +2273,7 @@ h3 {
   right: 0;
   bottom: 0;
   background: var(--bg-secondary);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  will-change: opacity;
 }

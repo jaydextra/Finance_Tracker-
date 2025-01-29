@@ -95,6 +95,7 @@ function App() {
   const [categoryColors, setCategoryColors] = useState({});
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isChartLoading, setIsChartLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -115,7 +116,9 @@ function App() {
         if (savedCreditCards) {
           setCreditCards(JSON.parse(savedCreditCards));
         }
-        setIsDataLoaded(true); // Set data loaded flag
+        setIsDataLoaded(true);
+        // Add delay before marking initial load as complete
+        setTimeout(() => setIsInitialLoad(false), 2000);
       } catch (error) {
         console.error('Error loading data:', error);
       }
@@ -126,8 +129,8 @@ function App() {
 
   // Update the chart useEffect
   useEffect(() => {
-    // Only proceed if data is loaded
-    if (!isDataLoaded) {
+    // Don't create chart during initial load
+    if (isInitialLoad || !isDataLoaded) {
       return;
     }
 
@@ -238,10 +241,10 @@ function App() {
       setIsChartLoading(false);
     };
 
-    // Use requestAnimationFrame for smoother rendering
+    // Create chart after a short delay
     const timer = setTimeout(() => {
       requestAnimationFrame(createChart);
-    }, 100);
+    }, 200);
 
     return () => {
       clearTimeout(timer);
@@ -249,7 +252,7 @@ function App() {
         chart.destroy();
       }
     };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart, isDataLoaded]);
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart, isDataLoaded, isInitialLoad]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
