@@ -123,6 +123,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   z-index: 1;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 canvas#expenseChart {
@@ -131,8 +133,14 @@ canvas#expenseChart {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
   will-change: transform;
   z-index: 2;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  background: transparent;
 }
 
 .card {

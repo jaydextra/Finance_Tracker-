@@ -94,12 +94,13 @@ function App() {
   const [activeForm, setActiveForm] = useState(null);
   const [categoryColors, setCategoryColors] = useState({});
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [chartInitialized, setChartInitialized] = useState(false);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   // Update the data loading useEffect
   useEffect(() => {
-    const loadData = () => {
+    const loadData = async () => {
       try {
         const savedTransactions = localStorage.getItem('transactions');
         const savedMonthsTransactions = localStorage.getItem('allMonthsTransactions');
@@ -114,6 +115,17 @@ function App() {
         if (savedCreditCards) {
           setCreditCards(JSON.parse(savedCreditCards));
         }
+
+        // Pre-initialize Chart.js
+        await Chart.register({
+          id: 'expense-chart',
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false
+          }
+        });
+
         setIsDataLoaded(true);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -121,133 +133,126 @@ function App() {
     };
 
     loadData();
-  }, []); // Only run on mount
+  }, []);
 
   // Update the chart useEffect
   useEffect(() => {
-    if (!isDataLoaded) {
+    if (!isDataLoaded || chartInitialized) {
       return;
     }
 
-    // Function to create chart
-    const createChart = () => {
-      const canvas = document.getElementById('expenseChart');
-      if (!canvas) return;
+    const canvas = document.getElementById('expenseChart');
+    if (!canvas) return;
 
-      // Destroy existing chart
-      if (chart) {
-        chart.destroy();
+    // Destroy existing chart
+    if (chart) {
+      chart.destroy();
+    }
+
+    const ctx = canvas.getContext('2d', { 
+      willReadFrequently: true
+    });
+    
+    if (!ctx) return;
+
+    // Clear any existing content
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const monthKey = `${currentYear}-${currentMonth}`;
+    const monthTransactions = allMonthsTransactions[monthKey] || [];
+    const regularTransactions = transactions.filter(t => {
+      const tDate = new Date(t.date);
+      return tDate.getMonth() === currentMonth && 
+             tDate.getFullYear() === currentYear;
+    });
+
+    const allTransactions = [...regularTransactions, ...monthTransactions]
+      .filter(t => t.type === 'expense' && !t.skipped);
+
+    const categoryTotals = allTransactions.reduce((acc, transaction) => {
+      if (!acc[transaction.category]) {
+        acc[transaction.category] = 0;
       }
+      acc[transaction.category] += parseFloat(transaction.amount) || 0;
+      return acc;
+    }, {});
 
-      // Wait for canvas to be ready
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return;
+    if (Object.keys(categoryTotals).length > 0) {
+      const categories = Object.keys(categoryTotals);
+      const colors = categories.map((category, index) => {
+        const categoryColors = {
+          'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
+          'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
+          'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+        };
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const monthKey = `${currentYear}-${currentMonth}`;
-      const monthTransactions = allMonthsTransactions[monthKey] || [];
-      const regularTransactions = transactions.filter(t => {
-        const tDate = new Date(t.date);
-        return tDate.getMonth() === currentMonth && 
-               tDate.getFullYear() === currentYear;
+        return categoryColors[category] || generateColor(index);
       });
 
-      const allTransactions = [...regularTransactions, ...monthTransactions]
-        .filter(t => t.type === 'expense' && !t.skipped);
-
-      const categoryTotals = allTransactions.reduce((acc, transaction) => {
-        if (!acc[transaction.category]) {
-          acc[transaction.category] = 0;
-        }
-        acc[transaction.category] += parseFloat(transaction.amount) || 0;
-        return acc;
-      }, {});
-
-      if (Object.keys(categoryTotals).length > 0) {
-        const categories = Object.keys(categoryTotals);
-        const colors = categories.map((category, index) => {
-          const categoryColors = {
-            'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
-            'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
-            'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
-          };
-
-          return categoryColors[category] || generateColor(index);
-        });
-
-        const newChart = new Chart(ctx, {
-          type: 'pie',
-          data: {
-            labels: categories,
-            datasets: [{
-              data: Object.values(categoryTotals),
-              backgroundColor: colors.map(c => c.bg),
-              borderColor: colors.map(c => c.border),
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: {
-              datalabels: {
-                formatter: (value) => `$${value.toFixed(2)}`,
-                color: '#fff',
+      const newChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: categories,
+          datasets: [{
+            data: Object.values(categoryTotals),
+            backgroundColor: colors.map(c => c.bg),
+            borderColor: colors.map(c => c.border),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            datalabels: {
+              formatter: (value) => `$${value.toFixed(2)}`,
+              color: '#fff',
+              font: {
+                weight: 'bold',
+                size: 14
+              }
+            },
+            legend: {
+              position: 'right',
+              labels: {
+                color: isDarkMode ? '#ffffff' : '#666666',
                 font: {
-                  weight: 'bold',
-                  size: 14
-                }
-              },
-              legend: {
-                position: 'right',
-                labels: {
-                  color: isDarkMode ? '#ffffff' : '#666666',
-                  font: {
-                    size: 12
-                  },
-                  generateLabels: (chart) => {
-                    const data = chart.data;
-                    if (data.labels.length && data.datasets.length) {
-                      return data.labels.map((label, i) => {
-                        const value = data.datasets[0].data[i];
-                        return {
-                          text: `${label}: $${value.toFixed(2)}`,
-                          fillStyle: data.datasets[0].backgroundColor[i],
-                          strokeStyle: data.datasets[0].borderColor[i],
-                          lineWidth: 1,
-                          hidden: false,
-                          index: i
-                        };
-                      });
-                    }
-                    return [];
+                  size: 12
+                },
+                generateLabels: (chart) => {
+                  const data = chart.data;
+                  if (data.labels.length && data.datasets.length) {
+                    return data.labels.map((label, i) => {
+                      const value = data.datasets[0].data[i];
+                      return {
+                        text: `${label}: $${value.toFixed(2)}`,
+                        fillStyle: data.datasets[0].backgroundColor[i],
+                        strokeStyle: data.datasets[0].borderColor[i],
+                        lineWidth: 1,
+                        hidden: false,
+                        index: i
+                      };
+                    });
                   }
+                  return [];
                 }
               }
             }
           }
-        });
-
-        setChart(newChart);
-      }
-    };
-
-    // Create chart with a longer delay for web deployment
-    const timer = setTimeout(() => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(createChart); // Double RAF for better stability
+        }
       });
-    }, 500);
+
+      setChart(newChart);
+      setChartInitialized(true);
+    }
 
     return () => {
-      clearTimeout(timer);
       if (chart) {
         chart.destroy();
       }
     };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart, isDataLoaded]);
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart, isDataLoaded, chartInitialized]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
