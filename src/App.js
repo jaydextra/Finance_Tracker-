@@ -171,19 +171,24 @@ function App() {
 
       // Create new chart and store in ref
       chartRef.current = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
           labels: categories,
           datasets: [{
             data: Object.values(categoryTotals),
             backgroundColor: colors.map(c => c.bg),
             borderColor: colors.map(c => c.border),
-            borderWidth: 1
+            borderWidth: 1,
+            cutout: '60%',
+            radius: '90%'
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          layout: {
+            padding: 20
+          },
           plugins: {
             datalabels: {
               formatter: (value) => `$${value.toFixed(2)}`,
@@ -191,7 +196,8 @@ function App() {
               font: {
                 weight: 'bold',
                 size: 14
-              }
+              },
+              textAlign: 'center'
             },
             legend: {
               position: 'right',
@@ -200,6 +206,7 @@ function App() {
                 font: {
                   size: 12
                 },
+                padding: 20,
                 generateLabels: (chart) => {
                   const data = chart.data;
                   if (data.labels.length && data.datasets.length) {
@@ -224,7 +231,6 @@ function App() {
       });
     }
 
-    // Cleanup function
     return () => {
       if (chartRef.current) {
         chartRef.current.destroy();
