@@ -19,6 +19,7 @@ import {
 } from 'chart.js';
 import MonthPage from './components/MonthPage';
 import CreditCardTracker from './components/CreditCardTracker';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Register ChartJS components
 ChartJS.register(
@@ -123,16 +124,9 @@ function App() {
 
   // Update the chart useEffect
   useEffect(() => {
-    // Function to destroy existing chart
-    const destroyExistingChart = () => {
-      if (chart) {
-        chart.destroy();
-        setChart(null);
-      }
-    };
-
-    // Function to create new chart
-    const createNewChart = () => {
+    let chartInstance = null;
+    
+    const timer = setTimeout(() => {
       const ctx = document.getElementById('expenseChart');
       if (!ctx) {
         console.log('Canvas context not found');
@@ -140,6 +134,11 @@ function App() {
       }
 
       try {
+        // Destroy existing chart if it exists
+        if (chart) {
+          chart.destroy();
+        }
+
         const monthKey = `${currentYear}-${currentMonth}`;
         const monthTransactions = allMonthsTransactions[monthKey] || [];
         const regularTransactions = transactions.filter(t => {
@@ -171,7 +170,7 @@ function App() {
             return categoryColors[category] || generateColor(index);
           });
 
-          const newChart = new Chart(ctx, {
+          chartInstance = new Chart(ctx, {
             type: 'pie',
             data: {
               labels: categories,
@@ -224,22 +223,21 @@ function App() {
             }
           });
 
-          setChart(newChart);
+          setChart(chartInstance);
         }
       } catch (error) {
         console.error('Error creating chart:', error);
       }
-    };
-
-    // Main execution
-    destroyExistingChart();
-    createNewChart();
+    }, 500); // Increased delay to 500ms
 
     // Cleanup function
     return () => {
-      destroyExistingChart();
+      clearTimeout(timer);
+      if (chart) {
+        chart.destroy();
+      }
     };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart]);
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);  // Removed 'chart' from dependencies
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {

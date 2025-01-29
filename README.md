@@ -1,15 +1,65 @@
 # Finance Tracker
 
-A web application for tracking personal finances, including income, expenses, and credit card management.
+A comprehensive personal finance management application built with React that helps users track their expenses, income, and credit card debt.
 
 ## Features
 
-- Track monthly income and expenses
-- Categorize expenses
-- Visual expense breakdown with charts
-- Credit card tracking
-- Dark/Light mode toggle
-- Responsive design for mobile and desktop
+- **Budget Management**
+  - Track monthly income and expenses
+  - Categorize expenses (Bills, Savings, Personal, Custom categories)
+  - Set up recurring transactions (Weekly, Bi-Weekly, Monthly)
+  - Visual breakdown of expenses with interactive pie chart
+  - Mark transactions as paid/unpaid
+  - Filter and sort transactions by various criteria
+
+- **Credit Card Debt Management**
+  - Track multiple credit cards
+  - Calculate payoff strategies (Snowball/Avalanche methods)
+  - Visual representation of debt payoff timeline
+  - Track interest rates and minimum payments
+  - Save monthly budget for debt payoff
+
+- **Data Persistence**
+  - Local storage implementation for all user data
+  - No backend required - all data stored locally
+
+- **User Interface**
+  - Responsive design for mobile and desktop
+  - Dark/Light mode toggle
+  - Interactive charts and graphs
+  - Intuitive form controls
+  - Bootstrap-based styling
+
+## Technical Details
+
+- Built with React.js
+- Uses Chart.js for data visualization
+- React-Bootstrap for UI components
+- Local Storage API for data persistence
+- FontAwesome icons for enhanced UI
+
+## Future Enhancements
+
+- Export functionality for financial data
+- Multiple currency support
+- Budget goal setting
+- Monthly spending analysis
+- Cloud backup option
+
+## Installation
+
+1. Clone the repository
+2. Run `npm install` to install dependencies
+3. Run `npm start` to start the development server
+4. Open `http://localhost:3000` to view the app
+
+## Dependencies
+
+- react
+- react-bootstrap
+- chart.js
+- chartjs-plugin-datalabels
+- @fortawesome/fontawesome-free
 
 Visit the live site: [Finance Tracker](https://jaydextra.github.io/Finance_Tracker-/)
 
