@@ -171,49 +171,96 @@ function App() {
 
       // Create new chart and store in ref
       chartRef.current = new Chart(ctx, {
-        type: 'doughnut',
+        type: 'pie',
         data: {
           labels: categories,
           datasets: [{
             data: Object.values(categoryTotals),
             backgroundColor: colors.map(c => c.bg),
             borderColor: colors.map(c => c.border),
-            borderWidth: 1,
-            cutout: '60%',
-            radius: '90%'
+            borderWidth: 1
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           layout: {
-            padding: 20
+            padding: {
+              left: 30,
+              right: 100,
+              top: 20,
+              bottom: 20
+            }
           },
           plugins: {
             datalabels: {
-              formatter: (value) => `$${value.toFixed(2)}`,
-              color: '#fff',
+              formatter: (value, context) => {
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                
+                // Format numbers - only show value, no percentage
+                if (value >= 1000000) {
+                  return `$${(value / 1000000).toFixed(1)}M`;
+                } else if (value >= 1000) {
+                  return `$${Math.round(value / 1000)}k`;
+                }
+                return `$${value.toFixed(0)}`;
+              },
+              color: (context) => {
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const value = context.dataset.data[context.dataIndex];
+                const percentage = (value / total) * 100;
+                return percentage < 10 ? '#666666' : '#FFFFFF';
+              },
               font: {
                 weight: 'bold',
-                size: 14
+                size: 12
               },
-              textAlign: 'center'
+              textAlign: 'center',
+              anchor: (context) => {
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const value = context.dataset.data[context.dataIndex];
+                const percentage = (value / total) * 100;
+                return percentage < 10 ? 'end' : 'center';
+              },
+              align: (context) => {
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const value = context.dataset.data[context.dataIndex];
+                const percentage = (value / total) * 100;
+                return percentage < 10 ? 'right' : 'center';
+              },
+              offset: (context) => {
+                const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                const value = context.dataset.data[context.dataIndex];
+                const percentage = (value / total) * 100;
+                return percentage < 10 ? 15 : 0;
+              }
             },
             legend: {
               position: 'right',
+              align: 'center',
               labels: {
                 color: isDarkMode ? '#ffffff' : '#666666',
                 font: {
                   size: 12
                 },
-                padding: 20,
+                padding: 10,
+                boxWidth: 15,
                 generateLabels: (chart) => {
                   const data = chart.data;
                   if (data.labels.length && data.datasets.length) {
                     return data.labels.map((label, i) => {
                       const value = data.datasets[0].data[i];
+                      let formattedValue;
+                      if (value >= 1000000) {
+                        formattedValue = `$${(value / 1000000).toFixed(1)}M`;
+                      } else if (value >= 1000) {
+                        formattedValue = `$${Math.round(value / 1000)}k`;
+                      } else {
+                        formattedValue = `$${value.toFixed(0)}`;
+                      }
                       return {
-                        text: `${label}: $${value.toFixed(2)}`,
+                        text: `${label}: ${formattedValue}`,
                         fillStyle: data.datasets[0].backgroundColor[i],
                         strokeStyle: data.datasets[0].borderColor[i],
                         lineWidth: 1,
