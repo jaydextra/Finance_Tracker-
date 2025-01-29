@@ -122,15 +122,12 @@
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  opacity: 1;
-  transition: opacity 0.3s ease;
 }
 
 canvas#expenseChart {
   height: 100% !important;
   width: 100% !important;
   opacity: 1;
-  transition: opacity 0.3s ease;
   position: absolute;
   top: 0;
   left: 0;
