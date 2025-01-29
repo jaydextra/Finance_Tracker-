@@ -139,7 +139,10 @@ function App() {
         chart.destroy();
       }
 
-      const ctx = canvas.getContext('2d');
+      // Wait for canvas to be ready
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const monthKey = `${currentYear}-${currentMonth}`;
@@ -187,9 +190,7 @@ function App() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-              duration: 0
-            },
+            animation: false,
             plugins: {
               datalabels: {
                 formatter: (value) => `$${value.toFixed(2)}`,
@@ -233,10 +234,12 @@ function App() {
       }
     };
 
-    // Create chart after a short delay
+    // Create chart with a longer delay for web deployment
     const timer = setTimeout(() => {
-      requestAnimationFrame(createChart);
-    }, 200);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(createChart); // Double RAF for better stability
+      });
+    }, 500);
 
     return () => {
       clearTimeout(timer);

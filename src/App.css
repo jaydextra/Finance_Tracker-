@@ -122,16 +122,17 @@
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  z-index: 1;
 }
 
 canvas#expenseChart {
   height: 100% !important;
   width: 100% !important;
-  opacity: 1;
   position: absolute;
   top: 0;
   left: 0;
   will-change: transform;
+  z-index: 2;
 }
 
 .card {
