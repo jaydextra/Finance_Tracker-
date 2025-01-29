@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 // src/App.js
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 import './App.css';
 import Chart from 'chart.js/auto';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
@@ -93,14 +93,15 @@ function App() {
   });
   const [activeForm, setActiveForm] = useState(null);
   const [categoryColors, setCategoryColors] = useState({});
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [chartInitialized, setChartInitialized] = useState(false);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // Update the data loading useEffect
+  // Add this ref to track chart instance
+  const chartRef = useRef(null);
+
+  // Simplify the data loading useEffect
   useEffect(() => {
-    const loadData = async () => {
+    const loadData = () => {
       try {
         const savedTransactions = localStorage.getItem('transactions');
         const savedMonthsTransactions = localStorage.getItem('allMonthsTransactions');
@@ -115,18 +116,6 @@ function App() {
         if (savedCreditCards) {
           setCreditCards(JSON.parse(savedCreditCards));
         }
-
-        // Pre-initialize Chart.js
-        await Chart.register({
-          id: 'expense-chart',
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false
-          }
-        });
-
-        setIsDataLoaded(true);
       } catch (error) {
         console.error('Error loading data:', error);
       }
@@ -137,27 +126,18 @@ function App() {
 
   // Update the chart useEffect
   useEffect(() => {
-    if (!isDataLoaded || chartInitialized) {
-      return;
+    // Always destroy existing chart instance first
+    if (chartRef.current) {
+      chartRef.current.destroy();
+      chartRef.current = null;
     }
 
     const canvas = document.getElementById('expenseChart');
     if (!canvas) return;
 
-    // Destroy existing chart
-    if (chart) {
-      chart.destroy();
-    }
-
-    const ctx = canvas.getContext('2d', { 
-      willReadFrequently: true
-    });
-    
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear any existing content
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
     const monthKey = `${currentYear}-${currentMonth}`;
     const monthTransactions = allMonthsTransactions[monthKey] || [];
     const regularTransactions = transactions.filter(t => {
@@ -189,7 +169,8 @@ function App() {
         return categoryColors[category] || generateColor(index);
       });
 
-      const newChart = new Chart(ctx, {
+      // Create new chart and store in ref
+      chartRef.current = new Chart(ctx, {
         type: 'pie',
         data: {
           labels: categories,
@@ -203,7 +184,6 @@ function App() {
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: false,
           plugins: {
             datalabels: {
               formatter: (value) => `$${value.toFixed(2)}`,
@@ -242,17 +222,16 @@ function App() {
           }
         }
       });
-
-      setChart(newChart);
-      setChartInitialized(true);
     }
 
+    // Cleanup function
     return () => {
-      if (chart) {
-        chart.destroy();
+      if (chartRef.current) {
+        chartRef.current.destroy();
+        chartRef.current = null;
       }
     };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart, isDataLoaded, chartInitialized]);
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
@@ -340,10 +319,10 @@ function App() {
       }
 
       // If chart exists, update it safely
-      if (chart) {
+      if (chartRef.current) {
         requestAnimationFrame(() => {
           try {
-            chart.update('none');
+            chartRef.current.update('none');
           } catch (error) {
             console.error('Error updating chart in togglePaid:', error);
           }

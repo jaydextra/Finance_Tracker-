@@ -114,33 +114,18 @@
 
 .chart-container {
   position: relative;
-  height: 400px !important;
-  width: 100% !important;
-  min-height: 400px !important;
+  height: 400px;
+  width: 100%;
+  min-height: 400px;
   background: var(--bg-secondary);
   border-radius: 8px;
   padding: 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  z-index: 1;
-  transform: translateZ(0);
-  backface-visibility: hidden;
 }
 
 canvas#expenseChart {
-  height: 100% !important;
   width: 100% !important;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  will-change: transform;
-  z-index: 2;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-font-smoothing: antialiased;
-  background: transparent;
+  height: 100% !important;
 }
 
 .card {
