@@ -93,12 +93,13 @@ function App() {
   });
   const [activeForm, setActiveForm] = useState(null);
   const [categoryColors, setCategoryColors] = useState({});
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isChartLoading, setIsChartLoading] = useState(true);
 
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // Load transactions from localStorage on component mount
+  // Update the data loading useEffect
   useEffect(() => {
-    // Load all data on mount
     const loadData = () => {
       try {
         const savedTransactions = localStorage.getItem('transactions');
@@ -114,6 +115,7 @@ function App() {
         if (savedCreditCards) {
           setCreditCards(JSON.parse(savedCreditCards));
         }
+        setIsDataLoaded(true); // Set data loaded flag
       } catch (error) {
         console.error('Error loading data:', error);
       }
@@ -124,120 +126,130 @@ function App() {
 
   // Update the chart useEffect
   useEffect(() => {
-    let chartInstance = null;
-    
-    const timer = setTimeout(() => {
-      const ctx = document.getElementById('expenseChart');
-      if (!ctx) {
-        console.log('Canvas context not found');
-        return;
+    // Only proceed if data is loaded
+    if (!isDataLoaded) {
+      return;
+    }
+
+    setIsChartLoading(true);
+
+    // Function to create chart
+    const createChart = () => {
+      const canvas = document.getElementById('expenseChart');
+      if (!canvas) return;
+
+      // Destroy existing chart
+      if (chart) {
+        chart.destroy();
       }
 
-      try {
-        // Destroy existing chart if it exists
-        if (chart) {
-          chart.destroy();
-        }
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const monthKey = `${currentYear}-${currentMonth}`;
-        const monthTransactions = allMonthsTransactions[monthKey] || [];
-        const regularTransactions = transactions.filter(t => {
-          const tDate = new Date(t.date);
-          return tDate.getMonth() === currentMonth && 
-                 tDate.getFullYear() === currentYear;
+      const monthKey = `${currentYear}-${currentMonth}`;
+      const monthTransactions = allMonthsTransactions[monthKey] || [];
+      const regularTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate.getMonth() === currentMonth && 
+               tDate.getFullYear() === currentYear;
+      });
+
+      const allTransactions = [...regularTransactions, ...monthTransactions]
+        .filter(t => t.type === 'expense' && !t.skipped);
+
+      const categoryTotals = allTransactions.reduce((acc, transaction) => {
+        if (!acc[transaction.category]) {
+          acc[transaction.category] = 0;
+        }
+        acc[transaction.category] += parseFloat(transaction.amount) || 0;
+        return acc;
+      }, {});
+
+      if (Object.keys(categoryTotals).length > 0) {
+        const categories = Object.keys(categoryTotals);
+        const colors = categories.map((category, index) => {
+          const categoryColors = {
+            'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
+            'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
+            'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
+          };
+
+          return categoryColors[category] || generateColor(index);
         });
 
-        const allTransactions = [...regularTransactions, ...monthTransactions]
-          .filter(t => t.type === 'expense' && !t.skipped);
-
-        const categoryTotals = allTransactions.reduce((acc, transaction) => {
-          if (!acc[transaction.category]) {
-            acc[transaction.category] = 0;
-          }
-          acc[transaction.category] += parseFloat(transaction.amount) || 0;
-          return acc;
-        }, {});
-
-        if (Object.keys(categoryTotals).length > 0) {
-          const categories = Object.keys(categoryTotals);
-          const colors = categories.map((category, index) => {
-            const categoryColors = {
-              'Bills': { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgba(255, 99, 132, 1)' },
-              'Savings': { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgba(54, 162, 235, 1)' },
-              'Personal': { bg: 'rgba(255, 206, 86, 0.8)', border: 'rgba(255, 206, 86, 1)' }
-            };
-
-            return categoryColors[category] || generateColor(index);
-          });
-
-          chartInstance = new Chart(ctx, {
-            type: 'pie',
-            data: {
-              labels: categories,
-              datasets: [{
-                data: Object.values(categoryTotals),
-                backgroundColor: colors.map(c => c.bg),
-                borderColor: colors.map(c => c.border),
-                borderWidth: 1
-              }]
+        const newChart = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: categories,
+            datasets: [{
+              data: Object.values(categoryTotals),
+              backgroundColor: colors.map(c => c.bg),
+              borderColor: colors.map(c => c.border),
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              duration: 0
             },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                datalabels: {
-                  formatter: (value) => `$${value.toFixed(2)}`,
-                  color: '#fff',
+            plugins: {
+              datalabels: {
+                formatter: (value) => `$${value.toFixed(2)}`,
+                color: '#fff',
+                font: {
+                  weight: 'bold',
+                  size: 14
+                }
+              },
+              legend: {
+                position: 'right',
+                labels: {
+                  color: isDarkMode ? '#ffffff' : '#666666',
                   font: {
-                    weight: 'bold',
-                    size: 14
-                  }
-                },
-                legend: {
-                  position: 'right',
-                  labels: {
-                    color: isDarkMode ? '#ffffff' : '#666666',
-                    font: {
-                      size: 12
-                    },
-                    generateLabels: (chart) => {
-                      const data = chart.data;
-                      if (data.labels.length && data.datasets.length) {
-                        return data.labels.map((label, i) => {
-                          const value = data.datasets[0].data[i];
-                          return {
-                            text: `${label}: $${value.toFixed(2)}`,
-                            fillStyle: data.datasets[0].backgroundColor[i],
-                            strokeStyle: data.datasets[0].borderColor[i],
-                            lineWidth: 1,
-                            hidden: false,
-                            index: i
-                          };
-                        });
-                      }
-                      return [];
+                    size: 12
+                  },
+                  generateLabels: (chart) => {
+                    const data = chart.data;
+                    if (data.labels.length && data.datasets.length) {
+                      return data.labels.map((label, i) => {
+                        const value = data.datasets[0].data[i];
+                        return {
+                          text: `${label}: $${value.toFixed(2)}`,
+                          fillStyle: data.datasets[0].backgroundColor[i],
+                          strokeStyle: data.datasets[0].borderColor[i],
+                          lineWidth: 1,
+                          hidden: false,
+                          index: i
+                        };
+                      });
                     }
+                    return [];
                   }
                 }
               }
             }
-          });
+          }
+        });
 
-          setChart(chartInstance);
-        }
-      } catch (error) {
-        console.error('Error creating chart:', error);
+        setChart(newChart);
       }
-    }, 500); // Increased delay to 500ms
+      setIsChartLoading(false);
+    };
 
-    // Cleanup function
+    // Use requestAnimationFrame for smoother rendering
+    const timer = setTimeout(() => {
+      requestAnimationFrame(createChart);
+    }, 100);
+
     return () => {
       clearTimeout(timer);
       if (chart) {
         chart.destroy();
       }
     };
-  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode]);  // Removed 'chart' from dependencies
+  }, [currentMonth, currentYear, transactions, allMonthsTransactions, isDarkMode, chart, isDataLoaded]);
 
   // Separate submit handlers for income and expenses
   const handleIncomeSubmit = (e) => {
